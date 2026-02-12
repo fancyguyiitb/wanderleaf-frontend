@@ -26,6 +26,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { apiFetch } from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
 
 const phoneSchema = z
   .string()
@@ -62,6 +64,8 @@ type SignupValues = z.infer<typeof signupSchema>;
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const setAuth = useAuthStore((state) => state.setAuth);
+  const router = useRouter();
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -78,16 +82,60 @@ export default function SignupPage() {
   const isLoading = form.formState.isSubmitting;
 
   const onSubmit = async (values: SignupValues) => {
+    const email = values.email.trim();
+    const fullName = values.name.trim();
+    const usernameFromName = fullName.split(' ')[0] || email.split('@')[0];
+
     const payload = {
-      name: values.name.trim(),
-      email: values.email.trim(),
-      phone: values.phone.trim(),
+      username: usernameFromName,
+      email,
       password: values.password,
     };
 
-    // TODO: replace with real API request
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    console.log('Signup', payload);
+    try {
+      // Create the user
+      const user = await apiFetch<{ id: number; username: string; email: string }>(
+        '/api/v1/auth/register/',
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        }
+      );
+
+      // Automatically log them in to improve UX
+      const loginResponse = await apiFetch<{
+        access: string;
+        refresh?: string;
+        user: { id: string; username: string; email: string; first_name: string; last_name: string };
+      }>('/api/v1/auth/login/', {
+        method: 'POST',
+        body: JSON.stringify({
+          identifier: user.email,
+          password: values.password,
+        }),
+      });
+
+      const displayName =
+        (loginResponse.user.first_name || loginResponse.user.last_name
+          ? `${loginResponse.user.first_name ?? ''} ${loginResponse.user.last_name ?? ''}`.trim()
+          : loginResponse.user.username) || loginResponse.user.email;
+
+      setAuth({
+        user: {
+          id: String(loginResponse.user.id),
+          name: displayName,
+          email: loginResponse.user.email,
+          isHost: false,
+        },
+        accessToken: loginResponse.access,
+        refreshToken: loginResponse.refresh ?? null,
+      });
+
+      router.push('/dashboard');
+    } catch (error: any) {
+      const message = error?.message ?? 'Unable to create your account. Please try again.';
+      form.setError('email', { type: 'manual', message });
+    }
   };
   const passwordValue = form.watch('password');
   const requirements = [

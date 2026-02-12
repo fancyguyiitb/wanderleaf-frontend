@@ -5,6 +5,7 @@ import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import { Mail, Lock, Eye, EyeOff, Phone, Chrome } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
@@ -26,6 +27,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { apiFetch } from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
 
 const phoneSchema = z
   .string()
@@ -36,21 +39,14 @@ const phoneSchema = z
 
 const loginSchema = z
   .object({
-    loginMethod: z.enum(['email', 'phone']),
-    email: z
-      .string()
-      .trim()
-      .email('Please enter a valid email')
-      .optional()
-      .or(z.literal('')),
+    loginMethod: z.enum(['email']),
+    email: z.string().trim().email('Please enter a valid email'),
     phone: phoneSchema.optional().or(z.literal('')),
     password: z.string().min(1, 'Password is required'),
     remember: z.boolean().optional(),
   })
   .refine(
-    (data) =>
-      (data.loginMethod === 'email' && !!data.email && data.email.length > 0) ||
-      (data.loginMethod === 'phone' && !!data.phone && data.phone.length > 0),
+    (data) => !!data.email && data.email.length > 0,
     {
       message: 'Please provide your email or phone based on the selected method',
       path: ['email'],
@@ -61,6 +57,8 @@ type LoginValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
+  const setAuth = useAuthStore((state) => state.setAuth);
+  const router = useRouter();
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -76,24 +74,63 @@ export default function LoginPage() {
   const isLoading = form.formState.isSubmitting;
 
   const onSubmit = async (values: LoginValues) => {
-    const payload =
-      values.loginMethod === 'email'
-        ? {
-            loginMethod: 'email' as const,
-            email: values.email?.trim(),
-            password: values.password,
-            remember: values.remember,
-          }
-        : {
-            loginMethod: 'phone' as const,
-            phone: values.phone?.trim(),
-            password: values.password,
-            remember: values.remember,
-          };
+    const payload = {
+      identifier: values.email.trim(),
+      password: values.password,
+    };
 
-    // TODO: replace with real API request
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    console.log('Login', payload);
+    try {
+      console.debug('[Login] Submitting login request', { payload });
+      const response = await apiFetch<{
+        access: string;
+        refresh?: string;
+        user: { id: string; username: string; email: string; first_name: string; last_name: string };
+      }>('/api/v1/auth/login/', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      const fullName =
+        (response.user.first_name || response.user.last_name
+          ? `${response.user.first_name ?? ''} ${response.user.last_name ?? ''}`.trim()
+          : response.user.username) || response.user.email;
+
+      setAuth({
+        user: {
+          id: String(response.user.id),
+          name: fullName,
+          email: response.user.email,
+          isHost: false,
+        },
+        accessToken: response.access,
+        refreshToken: response.refresh ?? null,
+      });
+
+      if (values.remember) {
+        // Store only what we need to restore the session; avoid storing sensitive extras
+        window.localStorage.setItem(
+          'wanderleaf_auth',
+          JSON.stringify({
+            access: response.access,
+            refresh: response.refresh ?? null,
+            user: {
+              id: String(response.user.id),
+              name: fullName,
+              email: response.user.email,
+              isHost: false,
+            },
+          })
+        );
+      } else {
+        window.localStorage.removeItem('wanderleaf_auth');
+      }
+
+      router.push('/dashboard');
+    } catch (error: any) {
+      console.error('[Login] Login failed', { error });
+      const message = error?.message ?? 'Unable to sign you in. Please try again.';
+      form.setError('password', { type: 'manual', message });
+    }
   };
 
   return (
@@ -175,14 +212,12 @@ export default function LoginPage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => field.onChange('phone')}
+                                disabled
                                 className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                                  field.value === 'phone'
-                                    ? 'bg-background text-foreground shadow-sm'
-                                    : 'text-muted-foreground hover:text-foreground'
+                                  'text-muted-foreground cursor-not-allowed'
                                 }`}
                               >
-                                Phone number
+                                Phone (coming soon)
                               </button>
                             </div>
                           </FormItem>
@@ -191,13 +226,11 @@ export default function LoginPage() {
 
                       <FormField
                         control={form.control}
-                        name={form.watch('loginMethod') === 'email' ? 'email' : 'phone'}
+                        name="email"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>
-                              {form.watch('loginMethod') === 'email'
-                                ? 'Email address'
-                                : 'Phone number'}
+                              Email address
                             </FormLabel>
                             <FormControl>
                               <div className="relative">
@@ -214,12 +247,8 @@ export default function LoginPage() {
                                 )}
                                 <Input
                                   {...field}
-                                  type={form.watch('loginMethod') === 'email' ? 'email' : 'tel'}
-                                  placeholder={
-                                    form.watch('loginMethod') === 'email'
-                                      ? 'you@example.com'
-                                      : '+1 555 123 4567'
-                                  }
+                                  type="email"
+                                  placeholder="you@example.com"
                                   className="pl-10"
                                 />
                               </div>
