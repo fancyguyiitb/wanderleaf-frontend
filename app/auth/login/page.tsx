@@ -1,25 +1,99 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
-import { Mail, Lock, Eye, EyeOff, Facebook, Github } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Phone, Chrome } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useState } from 'react';
+import * as z from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+
+const phoneSchema = z
+  .string()
+  .trim()
+  .min(8, 'Phone number is too short')
+  .max(20, 'Phone number is too long')
+  .regex(/^\+?[0-9()\-\s]+$/, 'Enter a valid phone number');
+
+const loginSchema = z
+  .object({
+    loginMethod: z.enum(['email', 'phone']),
+    email: z
+      .string()
+      .trim()
+      .email('Please enter a valid email')
+      .optional()
+      .or(z.literal('')),
+    phone: phoneSchema.optional().or(z.literal('')),
+    password: z.string().min(1, 'Password is required'),
+    remember: z.boolean().optional(),
+  })
+  .refine(
+    (data) =>
+      (data.loginMethod === 'email' && !!data.email && data.email.length > 0) ||
+      (data.loginMethod === 'phone' && !!data.phone && data.phone.length > 0),
+    {
+      message: 'Please provide your email or phone based on the selected method',
+      path: ['email'],
+    }
+  );
+
+type LoginValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    // Simulate API call
+  const form = useForm<LoginValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      loginMethod: 'email',
+      email: '',
+      phone: '',
+      password: '',
+      remember: true,
+    },
+  });
+
+  const isLoading = form.formState.isSubmitting;
+
+  const onSubmit = async (values: LoginValues) => {
+    const payload =
+      values.loginMethod === 'email'
+        ? {
+            loginMethod: 'email' as const,
+            email: values.email?.trim(),
+            password: values.password,
+            remember: values.remember,
+          }
+        : {
+            loginMethod: 'phone' as const,
+            phone: values.phone?.trim(),
+            password: values.password,
+            remember: values.remember,
+          };
+
+    // TODO: replace with real API request
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsLoading(false);
-    console.log({ email, password });
+    console.log('Login', payload);
   };
 
   return (
@@ -30,131 +104,227 @@ export default function LoginPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md"
+          className="w-full max-w-5xl"
         >
-          {/* Card */}
-          <div className="card-elegant p-8 rounded-2xl">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <h1 className="font-playfair text-3xl font-bold text-foreground mb-2">Welcome Back</h1>
-              <p className="text-muted-foreground">Sign in to access your account</p>
-            </div>
+          <div className="grid gap-10 lg:grid-cols-[1.1fr,0.9fr] items-center">
+            {/* Left: Brand / Story */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+              className="hidden lg:block"
+            >
+              <div className="relative">
+                <div className="absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
+                <div className="absolute -right-10 -bottom-10 h-48 w-48 rounded-full bg-accent/10 blur-3xl" />
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Email Input */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-foreground mb-2">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-                  <input
-                    id="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="w-full pl-10 pr-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground placeholder-muted-foreground"
-                  />
-                </div>
+                <Card className="card-elegant relative border-none bg-gradient-to-br from-card to-secondary/40 p-8">
+                  <p className="text-sm font-medium tracking-[0.2em] uppercase text-muted-foreground mb-4">
+                    Welcome back
+                  </p>
+                  <h1 className="font-playfair text-4xl xl:text-5xl font-bold text-foreground mb-4">
+                    Continue your journey into nature-inspired stays.
+                  </h1>
+                  <p className="text-muted-foreground text-sm md:text-base max-w-md">
+                    Sign in to pick up where you left off—favorite cabins, saved trips, and curated stays
+                    across the world&apos;s most tranquil landscapes.
+                  </p>
+                </Card>
               </div>
+            </motion.div>
 
-              {/* Password Input */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label htmlFor="password" className="block text-sm font-semibold text-foreground">
-                    Password
-                  </label>
-                  <Link href="/auth/forgot-password" className="text-sm text-primary hover:underline">
-                    Forgot?
-                  </Link>
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-                  <input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="w-full pl-10 pr-12 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground placeholder-muted-foreground"
-                  />
-                  <button
+            {/* Right: Auth Card */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              <Card className="card-elegant border-none rounded-2xl">
+                <CardHeader className="space-y-2 text-center">
+                  <CardTitle className="font-playfair text-3xl text-foreground">
+                    Sign in to StayNature
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">
+                    Access your bookings, favorites, and personalized recommendations.
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-6">
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                      {/* Login method toggle */}
+                      <FormField
+                        control={form.control}
+                        name="loginMethod"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs font-medium text-muted-foreground">
+                              Sign in with
+                            </FormLabel>
+                            <div className="mt-1 inline-flex w-full gap-2 rounded-lg bg-muted/60 p-1">
+                              <button
+                                type="button"
+                                onClick={() => field.onChange('email')}
+                                className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                                  field.value === 'email'
+                                    ? 'bg-background text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                              >
+                                Email
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => field.onChange('phone')}
+                                className={`flex-1 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                                  field.value === 'phone'
+                                    ? 'bg-background text-foreground shadow-sm'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                              >
+                                Phone number
+                              </button>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name={form.watch('loginMethod') === 'email' ? 'email' : 'phone'}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              {form.watch('loginMethod') === 'email'
+                                ? 'Email address'
+                                : 'Phone number'}
+                            </FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                {form.watch('loginMethod') === 'email' ? (
+                                  <Mail
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                                    size={18}
+                                  />
+                                ) : (
+                                  <Phone
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                                    size={18}
+                                  />
+                                )}
+                                <Input
+                                  {...field}
+                                  type={form.watch('loginMethod') === 'email' ? 'email' : 'tel'}
+                                  placeholder={
+                                    form.watch('loginMethod') === 'email'
+                                      ? 'you@example.com'
+                                      : '+1 555 123 4567'
+                                  }
+                                  className="pl-10"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <div className="flex items-center justify-between">
+                              <FormLabel>Password</FormLabel>
+                              <Link
+                                href="/auth/forgot-password"
+                                className="text-xs font-medium text-primary hover:underline"
+                              >
+                                Forgot password?
+                              </Link>
+                            </div>
+                            <FormControl>
+                              <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                                <Input
+                                  {...field}
+                                  type={showPassword ? 'text' : 'password'}
+                                  placeholder="••••••••"
+                                  className="pl-10 pr-10"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPassword((prev) => !prev)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="remember"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-center space-x-2 space-y-0">
+                            <FormControl>
+                              <input
+                                type="checkbox"
+                                checked={field.value}
+                                onChange={(e) => field.onChange(e.target.checked)}
+                                className="w-4 h-4 rounded border-border cursor-pointer accent-primary"
+                              />
+                            </FormControl>
+                            <FormLabel className="text-sm font-normal text-foreground">
+                              Remember me on this device
+                            </FormLabel>
+                          </FormItem>
+                        )}
+                      />
+
+                      <Button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full py-3 text-base font-semibold"
+                      >
+                        {isLoading ? 'Signing you in...' : 'Sign in'}
+                      </Button>
+                    </form>
+                  </Form>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-border" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-card px-3 text-muted-foreground">
+                        Or continue with Google
+                      </span>
+                    </div>
+                  </div>
+
+                  <Button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    variant="outline"
+                    className="flex w-full items-center justify-center gap-2"
                   >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
-              </div>
+                    <Chrome size={18} className="text-[#4285F4]" />
+                    <span className="text-sm font-medium">Continue with Google</span>
+                  </Button>
 
-              {/* Remember Me */}
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 rounded border-border cursor-pointer accent-primary"
-                />
-                <span className="text-sm text-foreground">Remember me</span>
-              </label>
-
-              {/* Submit Button */}
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                disabled={isLoading}
-                className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Signing in...' : 'Sign In'}
-              </motion.button>
-            </form>
-
-            {/* Divider */}
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-card text-muted-foreground">Or continue with</span>
-              </div>
-            </div>
-
-            {/* Social Auth */}
-            <div className="grid grid-cols-2 gap-4">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="flex items-center justify-center gap-2 py-3 border border-border rounded-lg hover:bg-muted transition-colors"
-              >
-                <Github size={20} className="text-foreground" />
-                <span className="text-sm font-medium text-foreground hidden sm:inline">GitHub</span>
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="flex items-center justify-center gap-2 py-3 border border-border rounded-lg hover:bg-muted transition-colors"
-              >
-                <Facebook size={20} className="text-blue-600" />
-                <span className="text-sm font-medium text-foreground hidden sm:inline">Facebook</span>
-              </motion.button>
-            </div>
-
-            {/* Sign Up Link */}
-            <p className="text-center mt-6 text-muted-foreground">
-              Don't have an account?{' '}
-              <Link href="/auth/signup" className="text-primary font-semibold hover:underline">
-                Sign up
-              </Link>
-            </p>
-          </div>
-
-          {/* Background Element */}
-          <div className="absolute inset-0 -z-10 opacity-10 blur-3xl">
-            <div className="absolute top-1/2 left-1/4 w-96 h-96 bg-primary rounded-full" />
-            <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-accent rounded-full" />
+                  <p className="text-center text-sm text-muted-foreground">
+                    New to StayNature?{' '}
+                    <Link href="/auth/signup" className="font-semibold text-primary hover:underline">
+                      Create an account
+                    </Link>
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
           </div>
         </motion.div>
       </main>
