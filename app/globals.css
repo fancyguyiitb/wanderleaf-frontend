@@ -1,0 +1,145 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    /* Nature-inspired color palette */
+    --background: 39 40% 97%;
+    --foreground: 18 12% 18%;
+    --card: 0 0% 100%;
+    --card-foreground: 18 12% 18%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 18 12% 18%;
+    
+    /* Primary - Earthy Forest Green */
+    --primary: 124 28% 35%;
+    --primary-foreground: 39 40% 98%;
+    
+    /* Secondary - Warm Beige */
+    --secondary: 30 35% 82%;
+    --secondary-foreground: 18 12% 18%;
+    
+    /* Muted - Soft gray/brown */
+    --muted: 30 20% 85%;
+    --muted-foreground: 18 12% 45%;
+    
+    /* Accent - Warm rust/terracotta */
+    --accent: 16 68% 60%;
+    --accent-foreground: 39 40% 98%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 30 20% 88%;
+    --input: 30 20% 92%;
+    --ring: 124 28% 35%;
+    
+    --chart-1: 124 28% 35%;
+    --chart-2: 16 68% 60%;
+    --chart-3: 30 35% 82%;
+    --chart-4: 45 92% 40%;
+    --chart-5: 18 12% 18%;
+    
+    --radius: 0.75rem;
+    
+    /* Sidebar variables */
+    --sidebar-background: 39 40% 97%;
+    --sidebar-foreground: 18 12% 18%;
+    --sidebar-primary: 124 28% 35%;
+    --sidebar-primary-foreground: 39 40% 98%;
+    --sidebar-accent: 16 68% 60%;
+    --sidebar-accent-foreground: 39 40% 98%;
+    --sidebar-border: 30 20% 88%;
+    --sidebar-ring: 16 68% 60%;
+  }
+
+  .dark {
+    --background: 18 12% 18%;
+    --foreground: 39 40% 97%;
+    --card: 18 12% 25%;
+    --card-foreground: 39 40% 97%;
+    --popover: 18 12% 25%;
+    --popover-foreground: 39 40% 97%;
+    
+    --primary: 124 28% 55%;
+    --primary-foreground: 18 12% 18%;
+    
+    --secondary: 30 35% 40%;
+    --secondary-foreground: 39 40% 97%;
+    
+    --muted: 30 20% 30%;
+    --muted-foreground: 39 40% 70%;
+    
+    --accent: 16 68% 50%;
+    --accent-foreground: 39 40% 98%;
+    
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 18 12% 30%;
+    --input: 18 12% 30%;
+    --ring: 16 68% 60%;
+    
+    --sidebar-background: 18 12% 18%;
+    --sidebar-foreground: 39 40% 97%;
+    --sidebar-primary: 124 28% 55%;
+    --sidebar-primary-foreground: 18 12% 18%;
+    --sidebar-accent: 16 68% 50%;
+    --sidebar-accent-foreground: 39 40% 98%;
+    --sidebar-border: 18 12% 30%;
+    --sidebar-ring: 16 68% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-background text-foreground font-poppins;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-playfair font-semibold;
+  }
+  
+  h1 {
+    @apply text-4xl md:text-5xl;
+  }
+  
+  h2 {
+    @apply text-3xl md:text-4xl;
+  }
+  
+  h3 {
+    @apply text-2xl md:text-3xl;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors;
+  }
+  
+  .btn-secondary {
+    @apply px-6 py-3 bg-secondary text-secondary-foreground rounded-lg font-medium hover:bg-secondary/90 transition-colors border border-border;
+  }
+  
+  .card-elegant {
+    @apply bg-card rounded-xl shadow-sm hover:shadow-md transition-shadow;
+  }
+}
