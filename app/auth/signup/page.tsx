@@ -85,11 +85,15 @@ export default function SignupPage() {
   const onSubmit = async (values: SignupValues) => {
     const email = values.email.trim();
     const fullName = values.name.trim();
-    const usernameFromName = fullName.split(' ')[0] || email.split('@')[0];
+    const usernameFromName = fullName || email.split('@')[0];
+
+    // Backend expects: username (full name), email, phone_number, password
+    const normalizedPhone = values.phone.replace(/[^\d]/g, '');
 
     const payload = {
       username: usernameFromName,
       email,
+      phone_number: normalizedPhone,
       password: values.password,
     };
 
@@ -107,19 +111,16 @@ export default function SignupPage() {
       const loginResponse = await apiFetch<{
         access: string;
         refresh?: string;
-        user: { id: string; username: string; email: string; first_name: string; last_name: string };
+        user: { id: string; username: string; email: string; phone_number: string | null };
       }>('/api/v1/auth/login/', {
         method: 'POST',
         body: JSON.stringify({
-          identifier: user.email,
+          email: user.email,
           password: values.password,
         }),
       });
 
-      const displayName =
-        (loginResponse.user.first_name || loginResponse.user.last_name
-          ? `${loginResponse.user.first_name ?? ''} ${loginResponse.user.last_name ?? ''}`.trim()
-          : loginResponse.user.username) || loginResponse.user.email;
+      const displayName = loginResponse.user.username || loginResponse.user.email;
 
       setAuth({
         user: {
