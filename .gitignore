@@ -3,8 +3,41 @@ __v0_runtime_loader.js
 __v0_devtools.tsx
 __v0_jsx-dev-runtime.ts
 
-# Common ignores
+# Node / package managers
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Next.js build output
 .next/
+out/
+.next-static/
+
+# Vercel / deployment
+.vercel/
+
+# Turborepo / build system
+.turbo/
+
+# Coverage / tests
+coverage/
+*.lcov
+
+# Environment files
+.env
+.env.*
 .env*.local
+
+# OS / editor junk
 .DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
+*.log
