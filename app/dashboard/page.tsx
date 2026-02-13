@@ -1,19 +1,36 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Heart, MapPin, Calendar, Clock, X, Edit2, LogOut } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { mockProperties } from '@/lib/mock-data';
+import { useAuthStore } from '@/lib/store';
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('trips');
   const [isEditing, setIsEditing] = useState(false);
+  const router = useRouter();
 
-  // Mock user data
-  const user = {
+  const authUser = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+
+  const handleLogout = () => {
+    // Clear auth store
+    logout();
+    // Clear any persisted auth
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('wanderleaf_auth');
+    }
+    // Redirect to login page
+    router.push('/auth/login');
+  };
+
+  // Fallback mock user for now until dashboard is fully wired to backend auth
+  const user = authUser ?? {
     name: 'Jane Doe',
     email: 'jane.doe@example.com',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop',
@@ -119,6 +136,7 @@ export default function DashboardPage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={handleLogout}
                 className="px-4 py-2 border border-border rounded-lg font-medium hover:bg-muted transition-colors flex items-center gap-2"
               >
                 <LogOut size={18} />

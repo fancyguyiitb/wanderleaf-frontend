@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import { Mail, Lock, User, Eye, EyeOff, CheckCircle, Phone } from 'lucide-react';

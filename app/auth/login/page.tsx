@@ -75,7 +75,7 @@ export default function LoginPage() {
 
   const onSubmit = async (values: LoginValues) => {
     const payload = {
-      identifier: values.email.trim(),
+      email: values.email.trim(),
       password: values.password,
     };
 
