@@ -10,6 +10,13 @@ import { motion } from 'framer-motion';
 import { mockProperties } from '@/lib/mock-data';
 import { useAuthStore } from '@/lib/store';
 
+const formatDate = (dateStr: string) =>
+  new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('trips');
   const [isEditing, setIsEditing] = useState(false);
@@ -204,11 +211,11 @@ export default function DashboardPage() {
                           <div className="flex flex-col sm:flex-row gap-4 text-sm text-foreground mb-4">
                             <span className="flex items-center gap-2">
                               <Calendar size={16} />
-                              Check-in: {new Date(booking.checkIn).toLocaleDateString()}
+                              Check-in: {formatDate(booking.checkIn)}
                             </span>
                             <span className="flex items-center gap-2">
                               <Calendar size={16} />
-                              Check-out: {new Date(booking.checkOut).toLocaleDateString()}
+                              Check-out: {formatDate(booking.checkOut)}
                             </span>
                           </div>
                         </div>
@@ -248,7 +255,7 @@ export default function DashboardPage() {
                       <div>
                         <p className="font-medium text-foreground">{booking.property.title}</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
+                          {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
                         </p>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
@@ -340,7 +347,7 @@ export default function DashboardPage() {
                       >
                         <div>
                           <p className="text-foreground font-medium">{booking.property.title}</p>
-                          <p className="text-sm text-muted-foreground">{new Date(booking.checkIn).toLocaleDateString()}</p>
+                          <p className="text-sm text-muted-foreground">{formatDate(booking.checkIn)}</p>
                         </div>
                         <p className="font-semibold text-foreground">${booking.totalPrice}</p>
                       </motion.div>
