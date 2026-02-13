@@ -9,6 +9,7 @@ import { Heart, MapPin, Calendar, Clock, X, Edit2, LogOut } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { mockProperties } from '@/lib/mock-data';
 import { useAuthStore } from '@/lib/store';
+import { getAvatarUrl } from '@/lib/avatar';
 
 const formatDate = (dateStr: string) =>
   new Date(dateStr).toLocaleDateString('en-US', {
@@ -37,11 +38,11 @@ export default function DashboardPage() {
 
   // Fallback mock user for now until dashboard is fully wired to backend auth
   const user = authUser ?? {
-    name: 'Jane Doe',
-    email: 'jane.doe@example.com',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop',
-    joinDate: 'Joined January 2023',
-    verified: true,
+    name: 'Guest User',
+    email: 'guest@example.com',
+    avatar: null,
+    joinDate: 'Joined StayNature',
+    verified: false,
   };
 
   // Mock bookings data
@@ -111,7 +112,7 @@ export default function DashboardPage() {
           <div className="flex items-start justify-between gap-6">
             <div className="flex items-start gap-6">
               <img
-                src={user.avatar}
+                src={getAvatarUrl(user.avatar, user.name)}
                 alt={user.name}
                 className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover"
               />

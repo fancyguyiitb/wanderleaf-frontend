@@ -28,6 +28,7 @@ import {
 import { Mail, User, ImageIcon } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { apiFetch, getApiBaseUrl } from '@/lib/api';
+import { getAvatarUrl } from '@/lib/avatar';
 
 const profileSchema = z.object({
   name: z.string().trim().min(2, 'Please enter your full name'),
@@ -293,18 +294,12 @@ export default function ProfilePage() {
             <div className="-mt-16 px-6 pb-6 flex flex-col sm:flex-row sm:items-end gap-4">
               <div className="relative shrink-0">
                 <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full border-4 border-background bg-muted overflow-hidden shadow-md">
-                  {avatarPreview ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={avatarPreview}
-                      alt={user?.name ?? 'Profile photo'}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-3xl font-semibold text-muted-foreground">
-                      {(user?.name ?? 'S')[0]}
-                    </div>
-                  )}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={getAvatarUrl(avatarPreview ?? user?.avatar, user?.name ?? null)}
+                    alt={user?.name ?? 'Profile photo'}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
               </div>
               <div className="flex-1 pb-2 sm:pb-4">

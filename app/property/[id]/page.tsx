@@ -10,6 +10,7 @@ import { mockProperties } from '@/lib/mock-data';
 import { Heart, MapPin, Users, Wifi, Wind, Flame, Coffee } from 'lucide-react';
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import { getAvatarUrl } from '@/lib/avatar';
 
 export default function PropertyDetailPage() {
   const params = useParams();
@@ -164,7 +165,7 @@ export default function PropertyDetailPage() {
               <h2 className="font-playfair text-2xl font-bold text-foreground mb-6">Meet your host</h2>
               <div className="flex items-start gap-6 card-elegant p-6 rounded-xl">
                 <img
-                  src={property.host.avatar}
+                  src={getAvatarUrl(property.host.avatar, property.host.name)}
                   alt={property.host.name}
                   className="w-24 h-24 rounded-full object-cover flex-shrink-0"
                 />
