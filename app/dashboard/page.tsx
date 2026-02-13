@@ -19,7 +19,6 @@ const formatDate = (dateStr: string) =>
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('trips');
-  const [isEditing, setIsEditing] = useState(false);
   const router = useRouter();
 
   const authUser = useAuthStore((state) => state.user);
@@ -134,7 +133,7 @@ export default function DashboardPage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setIsEditing(!isEditing)}
+                onClick={() => router.push('/dashboard/profile')}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
               >
                 <Edit2 size={18} />

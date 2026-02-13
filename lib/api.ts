@@ -78,3 +78,5 @@ export const apiFetch = async <TResponse>(
   }
 };
 
+export const getApiBaseUrl = () => getBaseUrl();
+
