@@ -84,7 +84,14 @@ export default function LoginPage() {
       const response = await apiFetch<{
         access: string;
         refresh?: string;
-        user: { id: string; username: string; email: string; first_name: string; last_name: string };
+        user: {
+          id: string;
+          username: string;
+          email: string;
+          first_name: string;
+          last_name: string;
+          avatar?: string | null;
+        };
       }>('/api/v1/auth/login/', {
         method: 'POST',
         body: JSON.stringify(payload),
@@ -100,6 +107,7 @@ export default function LoginPage() {
           id: String(response.user.id),
           name: fullName,
           email: response.user.email,
+          avatar: response.user.avatar ?? undefined,
           isHost: false,
         },
         accessToken: response.access,
@@ -117,6 +125,7 @@ export default function LoginPage() {
               id: String(response.user.id),
               name: fullName,
               email: response.user.email,
+              avatar: response.user.avatar ?? undefined,
               isHost: false,
             },
           })

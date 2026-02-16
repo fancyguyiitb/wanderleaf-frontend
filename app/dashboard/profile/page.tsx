@@ -90,6 +90,11 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!user) {
+      // If we have persisted auth, AuthHydrator will populate the store momentarily.
+      if (typeof window !== 'undefined') {
+        const raw = window.localStorage.getItem('wanderleaf_auth');
+        if (raw) return;
+      }
       router.replace('/auth/login');
       return;
     }
@@ -237,6 +242,27 @@ export default function ProfilePage() {
         accessToken: token,
         refreshToken: refreshToken ?? null,
       });
+
+      // If the user chose "remember me", keep persisted auth in sync (incl avatar)
+      if (typeof window !== 'undefined') {
+        const raw = window.localStorage.getItem('wanderleaf_auth');
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw);
+            window.localStorage.setItem(
+              'wanderleaf_auth',
+              JSON.stringify({
+                ...parsed,
+                access: token,
+                refresh: refreshToken ?? null,
+                user: nextUser,
+              })
+            );
+          } catch {
+            // ignore
+          }
+        }
+      }
 
       // Reset initial profile and local avatar state after successful save
       setInitialProfile({
