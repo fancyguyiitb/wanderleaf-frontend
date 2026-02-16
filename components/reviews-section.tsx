@@ -2,6 +2,7 @@
 
 import { Star } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getAvatarUrl } from '@/lib/avatar';
 
 interface Review {
   id: string;
@@ -127,7 +128,7 @@ export default function ReviewsSection({ rating, reviewCount }: ReviewsSectionPr
             <div className="flex gap-4">
               {/* Avatar */}
               <img
-                src={review.avatar}
+                src={getAvatarUrl(review.avatar, review.author)}
                 alt={review.author}
                 className="w-12 h-12 rounded-full object-cover flex-shrink-0"
               />

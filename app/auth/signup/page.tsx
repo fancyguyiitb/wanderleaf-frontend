@@ -1,50 +1,149 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
-import { Mail, Lock, User, Eye, EyeOff, CheckCircle } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, CheckCircle, Phone } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useState } from 'react';
+import * as z from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { apiFetch } from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
+
+const phoneSchema = z
+  .string()
+  .trim()
+  .min(8, 'Phone number is too short')
+  .max(20, 'Phone number is too long')
+  .regex(/^\+?[0-9()\-\s]+$/, 'Enter a valid phone number');
+
+const passwordSchema = z
+  .string()
+  .min(8, 'At least 8 characters')
+  .regex(/[a-z]/, 'Include a lowercase letter')
+  .regex(/[A-Z]/, 'Include an uppercase letter')
+  .regex(/\d/, 'Include a number');
+
+const signupSchema = z
+  .object({
+    name: z.string().trim().min(2, 'Please enter your full name'),
+    email: z.string().trim().email('Please enter a valid email'),
+    phone: phoneSchema,
+    password: passwordSchema,
+    confirmPassword: z.string(),
+    agreeToTerms: z.literal(true, {
+      errorMap: () => ({ message: 'You must agree to the terms to continue' }),
+    }),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
+
+type SignupValues = z.infer<typeof signupSchema>;
 
 export default function SignupPage() {
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-  });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const setAuth = useAuthStore((state) => state.setAuth);
+  const router = useRouter();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  const form = useForm<SignupValues>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      phone: '',
+      password: '',
+      confirmPassword: '',
+      agreeToTerms: false,
+    },
+  });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (formData.password !== formData.confirmPassword) {
-      alert('Passwords do not match');
-      return;
+  const isLoading = form.formState.isSubmitting;
+
+  const onSubmit = async (values: SignupValues) => {
+    const email = values.email.trim();
+    const fullName = values.name.trim();
+    const usernameFromName = fullName || email.split('@')[0];
+
+    // Backend expects: username (full name), email, phone_number, password
+    const normalizedPhone = values.phone.replace(/[^\d]/g, '');
+
+    const payload = {
+      username: usernameFromName,
+      email,
+      phone_number: normalizedPhone,
+      password: values.password,
+    };
+
+    try {
+      // Create the user
+      const user = await apiFetch<{ id: number; username: string; email: string }>(
+        '/api/v1/auth/register/',
+        {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        }
+      );
+
+      // Automatically log them in to improve UX
+      const loginResponse = await apiFetch<{
+        access: string;
+        refresh?: string;
+        user: { id: string; username: string; email: string; phone_number: string | null };
+      }>('/api/v1/auth/login/', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: user.email,
+          password: values.password,
+        }),
+      });
+
+      const displayName = loginResponse.user.username || loginResponse.user.email;
+
+      setAuth({
+        user: {
+          id: String(loginResponse.user.id),
+          name: displayName,
+          email: loginResponse.user.email,
+          isHost: false,
+        },
+        accessToken: loginResponse.access,
+        refreshToken: loginResponse.refresh ?? null,
+      });
+
+      router.push('/dashboard');
+    } catch (error: any) {
+      const message = error?.message ?? 'Unable to create your account. Please try again.';
+      form.setError('email', { type: 'manual', message });
     }
-    if (!agreeToTerms) {
-      alert('Please agree to the Terms of Service');
-      return;
-    }
-    setIsLoading(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsLoading(false);
-    console.log('Signup:', formData);
   };
-
+  const passwordValue = form.watch('password');
   const requirements = [
-    { label: 'At least 8 characters', met: formData.password.length >= 8 },
-    { label: 'Contains uppercase and lowercase', met: /[a-z]/.test(formData.password) && /[A-Z]/.test(formData.password) },
-    { label: 'Contains a number', met: /\d/.test(formData.password) },
+    { label: 'At least 8 characters', met: passwordValue.length >= 8 },
+    { label: 'Uppercase & lowercase letters', met: /[a-z]/.test(passwordValue) && /[A-Z]/.test(passwordValue) },
+    { label: 'At least one number', met: /\d/.test(passwordValue) },
   ];
 
   return (
@@ -55,172 +154,254 @@ export default function SignupPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md"
+          className="w-full max-w-5xl"
         >
-          {/* Card */}
-          <div className="card-elegant p-8 rounded-2xl">
-            {/* Header */}
-            <div className="text-center mb-8">
-              <h1 className="font-playfair text-3xl font-bold text-foreground mb-2">Join StayNature</h1>
-              <p className="text-muted-foreground">Create your account to get started</p>
-            </div>
+          <div className="grid gap-10 lg:grid-cols-[0.9fr,1.1fr] items-center">
+            {/* Left: Auth Card */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Card className="card-elegant border-none rounded-2xl">
+                <CardHeader className="space-y-2 text-center">
+                  <CardTitle className="font-playfair text-3xl text-foreground">
+                    Create your StayNature account
+                  </CardTitle>
+                  <CardDescription className="text-muted-foreground">
+                    Join a community of travelers who prefer cabins, treehouses, and nature-first stays.
+                  </CardDescription>
+                </CardHeader>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Name Input */}
-              <div>
-                <label htmlFor="name" className="block text-sm font-semibold text-foreground mb-2">
-                  Full Name
-                </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-                  <input
-                    id="name"
-                    name="name"
-                    type="text"
-                    placeholder="Jane Doe"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                    className="w-full pl-10 pr-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground placeholder-muted-foreground"
-                  />
-                </div>
+                <CardContent className="space-y-6">
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Full name</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                                <Input
+                                  {...field}
+                                  placeholder="Jane Doe"
+                                  className="pl-10"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Email address</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                                <Input
+                                  {...field}
+                                  type="email"
+                                  placeholder="you@example.com"
+                                  className="pl-10"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Phone number</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Phone
+                                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                                  size={18}
+                                />
+                                <Input
+                                  {...field}
+                                  type="tel"
+                                  placeholder="+1 555 123 4567"
+                                  className="pl-10"
+                                />
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="password"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                                <Input
+                                  {...field}
+                                  type={showPassword ? 'text' : 'password'}
+                                  placeholder="••••••••"
+                                  className="pl-10 pr-10"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowPassword((prev) => !prev)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+
+                            {passwordValue && (
+                              <motion.div
+                                initial={{ opacity: 0, y: -8 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="mt-3 space-y-1.5"
+                              >
+                                {requirements.map((req) => (
+                                  <div key={req.label} className="flex items-center gap-2 text-xs">
+                                    <CheckCircle
+                                      size={14}
+                                      className={req.met ? 'text-green-600' : 'text-muted-foreground'}
+                                      fill={req.met ? 'currentColor' : 'none'}
+                                    />
+                                    <span className={req.met ? 'text-foreground' : 'text-muted-foreground'}>
+                                      {req.label}
+                                    </span>
+                                  </div>
+                                ))}
+                              </motion.div>
+                            )}
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="confirmPassword"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Confirm password</FormLabel>
+                            <FormControl>
+                              <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+                                <Input
+                                  {...field}
+                                  type={showConfirmPassword ? 'text' : 'password'}
+                                  placeholder="••••••••"
+                                  className="pl-10 pr-10"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowConfirmPassword((prev) => !prev)}
+                                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="agreeToTerms"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-border bg-muted/40 px-3 py-3">
+                            <FormControl>
+                              <input
+                                type="checkbox"
+                                checked={field.value}
+                                onChange={(e) => field.onChange(e.target.checked)}
+                                className="mt-1 w-4 h-4 rounded border-border cursor-pointer accent-primary"
+                              />
+                            </FormControl>
+                            <div className="space-y-1 leading-tight">
+                              <FormLabel className="text-sm font-normal text-foreground">
+                                I agree to the{' '}
+                                <Link href="#" className="text-primary hover:underline">
+                                  Terms of Service
+                                </Link>{' '}
+                                and{' '}
+                                <Link href="#" className="text-primary hover:underline">
+                                  Privacy Policy
+                                </Link>
+                                .
+                              </FormLabel>
+                              <FormMessage />
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+
+                      <Button
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full py-3 text-base font-semibold"
+                      >
+                        {isLoading ? 'Creating your account...' : 'Create account'}
+                      </Button>
+                    </form>
+                  </Form>
+
+                  <p className="text-center text-sm text-muted-foreground">
+                    Already have an account?{' '}
+                    <Link href="/auth/login" className="font-semibold text-primary hover:underline">
+                      Sign in
+                    </Link>
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Right: Brand / Story */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.15 }}
+              className="hidden lg:block"
+            >
+              <div className="relative">
+                <div className="absolute -left-10 -top-10 h-40 w-40 rounded-full bg-primary/10 blur-3xl" />
+                <div className="absolute -right-10 -bottom-10 h-48 w-48 rounded-full bg-accent/10 blur-3xl" />
+
+                <Card className="card-elegant relative border-none bg-gradient-to-br from-card to-secondary/40 p-8">
+                  <p className="text-sm font-medium tracking-[0.2em] uppercase text-muted-foreground mb-4">
+                    Stay closer to nature
+                  </p>
+                  <h2 className="font-playfair text-4xl xl:text-5xl font-bold text-foreground mb-4">
+                    Discover cabins, hideaways, and retreats you&apos;ll want to return to.
+                  </h2>
+                  <p className="text-muted-foreground text-sm md:text-base max-w-md mb-4">
+                    Build your wishlist, follow trusted hosts, and plan slow getaways that feel like a deep breath.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    We carefully curate each StayNature listing to meet our standards for comfort, authenticity, and
+                    connection to the outdoors.
+                  </p>
+                </Card>
               </div>
-
-              {/* Email Input */}
-              <div>
-                <label htmlFor="email" className="block text-sm font-semibold text-foreground mb-2">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-                  <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="you@example.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                    className="w-full pl-10 pr-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground placeholder-muted-foreground"
-                  />
-                </div>
-              </div>
-
-              {/* Password Input */}
-              <div>
-                <label htmlFor="password" className="block text-sm font-semibold text-foreground mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                    className="w-full pl-10 pr-12 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground placeholder-muted-foreground"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
-
-                {/* Password Requirements */}
-                {formData.password && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-3 space-y-2"
-                  >
-                    {requirements.map((req, index) => (
-                      <div key={index} className="flex items-center gap-2 text-sm">
-                        <CheckCircle
-                          size={16}
-                          className={req.met ? 'text-green-600' : 'text-muted-foreground'}
-                          fill={req.met ? 'currentColor' : 'none'}
-                        />
-                        <span className={req.met ? 'text-foreground' : 'text-muted-foreground'}>
-                          {req.label}
-                        </span>
-                      </div>
-                    ))}
-                  </motion.div>
-                )}
-              </div>
-
-              {/* Confirm Password Input */}
-              <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-semibold text-foreground mb-2">
-                  Confirm Password
-                </label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    required
-                    className="w-full pl-10 pr-12 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground placeholder-muted-foreground"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Terms Agreement */}
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={agreeToTerms}
-                  onChange={(e) => setAgreeToTerms(e.target.checked)}
-                  className="w-4 h-4 rounded border-border cursor-pointer accent-primary mt-1 flex-shrink-0"
-                />
-                <span className="text-sm text-foreground">
-                  I agree to the{' '}
-                  <Link href="#" className="text-primary hover:underline">
-                    Terms of Service
-                  </Link>{' '}
-                  and{' '}
-                  <Link href="#" className="text-primary hover:underline">
-                    Privacy Policy
-                  </Link>
-                </span>
-              </label>
-
-              {/* Submit Button */}
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                disabled={isLoading}
-                className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? 'Creating Account...' : 'Sign Up'}
-              </motion.button>
-            </form>
-
-            {/* Sign In Link */}
-            <p className="text-center mt-6 text-muted-foreground">
-              Already have an account?{' '}
-              <Link href="/auth/login" className="text-primary font-semibold hover:underline">
-                Sign in
-              </Link>
-            </p>
+            </motion.div>
           </div>
         </motion.div>
       </main>

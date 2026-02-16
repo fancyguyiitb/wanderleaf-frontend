@@ -49,7 +49,9 @@ interface AuthStore {
   user: User | null;
   isAuthenticated: boolean;
   userMode: 'guest' | 'host';
-  setUser: (user: User | null) => void;
+  accessToken: string | null;
+  refreshToken: string | null;
+  setAuth: (payload: { user: User; accessToken: string; refreshToken: string | null }) => void;
   setUserMode: (mode: 'guest' | 'host') => void;
   logout: () => void;
 }
@@ -73,9 +75,23 @@ export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   isAuthenticated: false,
   userMode: 'guest',
-  setUser: (user) => set({ user, isAuthenticated: !!user }),
+  accessToken: null,
+  refreshToken: null,
+  setAuth: ({ user, accessToken, refreshToken }) =>
+    set({
+      user,
+      accessToken,
+      refreshToken,
+      isAuthenticated: true,
+    }),
   setUserMode: (mode) => set({ userMode: mode }),
-  logout: () => set({ user: null, isAuthenticated: false }),
+  logout: () =>
+    set({
+      user: null,
+      isAuthenticated: false,
+      accessToken: null,
+      refreshToken: null,
+    }),
 }));
 
 export const usePropertyStore = create<PropertyStore>((set) => ({

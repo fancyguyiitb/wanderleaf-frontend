@@ -1,24 +1,48 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Heart, MapPin, Calendar, Clock, X, Edit2, LogOut } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { mockProperties } from '@/lib/mock-data';
+import { useAuthStore } from '@/lib/store';
+import { getAvatarUrl } from '@/lib/avatar';
+
+const formatDate = (dateStr: string) =>
+  new Date(dateStr).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState('trips');
-  const [isEditing, setIsEditing] = useState(false);
+  const router = useRouter();
 
-  // Mock user data
-  const user = {
-    name: 'Jane Doe',
-    email: 'jane.doe@example.com',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop',
-    joinDate: 'Joined January 2023',
-    verified: true,
+  const authUser = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
+
+  const handleLogout = () => {
+    // Clear auth store
+    logout();
+    // Clear any persisted auth
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem('wanderleaf_auth');
+    }
+    // Redirect to login page
+    router.push('/auth/login');
+  };
+
+  // Fallback mock user for now until dashboard is fully wired to backend auth
+  const user = authUser ?? {
+    name: 'Guest User',
+    email: 'guest@example.com',
+    avatar: null,
+    joinDate: 'Joined StayNature',
+    verified: false,
   };
 
   // Mock bookings data
@@ -88,7 +112,7 @@ export default function DashboardPage() {
           <div className="flex items-start justify-between gap-6">
             <div className="flex items-start gap-6">
               <img
-                src={user.avatar}
+                src={getAvatarUrl(user.avatar, user.name)}
                 alt={user.name}
                 className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover"
               />
@@ -110,7 +134,7 @@ export default function DashboardPage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setIsEditing(!isEditing)}
+                onClick={() => router.push('/dashboard/profile')}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors flex items-center gap-2"
               >
                 <Edit2 size={18} />
@@ -119,6 +143,7 @@ export default function DashboardPage() {
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
+                onClick={handleLogout}
                 className="px-4 py-2 border border-border rounded-lg font-medium hover:bg-muted transition-colors flex items-center gap-2"
               >
                 <LogOut size={18} />
@@ -186,11 +211,11 @@ export default function DashboardPage() {
                           <div className="flex flex-col sm:flex-row gap-4 text-sm text-foreground mb-4">
                             <span className="flex items-center gap-2">
                               <Calendar size={16} />
-                              Check-in: {new Date(booking.checkIn).toLocaleDateString()}
+                              Check-in: {formatDate(booking.checkIn)}
                             </span>
                             <span className="flex items-center gap-2">
                               <Calendar size={16} />
-                              Check-out: {new Date(booking.checkOut).toLocaleDateString()}
+                              Check-out: {formatDate(booking.checkOut)}
                             </span>
                           </div>
                         </div>
@@ -230,7 +255,7 @@ export default function DashboardPage() {
                       <div>
                         <p className="font-medium text-foreground">{booking.property.title}</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
+                          {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
                         </p>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
@@ -322,7 +347,7 @@ export default function DashboardPage() {
                       >
                         <div>
                           <p className="text-foreground font-medium">{booking.property.title}</p>
-                          <p className="text-sm text-muted-foreground">{new Date(booking.checkIn).toLocaleDateString()}</p>
+                          <p className="text-sm text-muted-foreground">{formatDate(booking.checkIn)}</p>
                         </div>
                         <p className="font-semibold text-foreground">${booking.totalPrice}</p>
                       </motion.div>
