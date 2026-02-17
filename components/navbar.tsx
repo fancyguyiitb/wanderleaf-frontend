@@ -84,7 +84,7 @@ export default function Navbar() {
             {/* Profile / Auth buttons */}
             {isAuthenticated ? (
               <Link
-                href="/dashboard/profile"
+                href="/dashboard"
                 className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full border border-border hover:shadow-md transition-shadow"
               >
                 <User size={18} />
@@ -128,7 +128,7 @@ export default function Navbar() {
               {isAuthenticated ? (
                 <>
                   <Link
-                    href="/dashboard/profile"
+                    href="/dashboard"
                     onClick={() => setIsMenuOpen(false)}
                     className="flex items-center gap-2 text-foreground hover:text-primary transition-colors"
                   >
