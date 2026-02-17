@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -11,31 +11,60 @@ import {
   BedDouble,
   Bath,
   Users,
-  DollarSign,
   Star,
   MoreVertical,
   Eye,
   Home,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
-import { useHostListingStore, Property } from '@/lib/store';
+import { useHostListingStore, useAuthStore, Property } from '@/lib/store';
+import { listingsApi } from '@/lib/api';
 import HostHeroSection from '@/components/host-hero-section';
 import CreatePropertyForm from '@/components/create-property-form';
 
 export default function HostHomeView() {
-  const { hostListings, addHostListing, removeHostListing } = useHostListingStore();
+  const { hostListings, addHostListing, removeHostListing, setHostListings } =
+    useHostListingStore();
+  const { isAuthenticated } = useAuthStore();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+
+  const fetchListings = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setIsLoading(true);
+    setFetchError(null);
+    try {
+      const listings = await listingsApi.getMyListings();
+      setHostListings(listings);
+    } catch (err: any) {
+      setFetchError(err.message || 'Failed to load your listings.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, setHostListings]);
+
+  useEffect(() => {
+    fetchListings();
+  }, [fetchListings]);
 
   const handleCreateProperty = (property: Property) => {
     addHostListing(property);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     setDeletingId(id);
-    setTimeout(() => {
-      removeHostListing(id);
+    try {
+      await listingsApi.remove(id);
+      setTimeout(() => {
+        removeHostListing(id);
+        setDeletingId(null);
+      }, 300);
+    } catch {
       setDeletingId(null);
-    }, 300);
+    }
   };
 
   return (
@@ -60,26 +89,72 @@ export default function HostHomeView() {
               Your Properties
             </h2>
             <p className="text-muted-foreground mt-2">
-              {hostListings.length === 0
+              {isLoading
+                ? 'Loading your listings...'
+                : hostListings.length === 0
                 ? 'You have no listings yet. Create your first one!'
                 : `${hostListings.length} ${hostListings.length === 1 ? 'property' : 'properties'} listed`}
             </p>
           </div>
-          {hostListings.length > 0 && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setIsCreateOpen(true)}
-              className="hidden sm:flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+          <div className="flex items-center gap-3">
+            <button
+              onClick={fetchListings}
+              disabled={isLoading}
+              className="p-2.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
+              title="Refresh listings"
             >
-              <PlusCircle size={18} />
-              Add Property
-            </motion.button>
-          )}
+              <RefreshCw size={18} className={isLoading ? 'animate-spin' : ''} />
+            </button>
+            {hostListings.length > 0 && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setIsCreateOpen(true)}
+                className="hidden sm:flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+              >
+                <PlusCircle size={18} />
+                Add Property
+              </motion.button>
+            )}
+          </div>
         </motion.div>
 
-        {/* Properties Grid */}
-        {hostListings.length > 0 ? (
+        {/* Error Banner */}
+        {fetchError && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-sm flex items-center justify-between"
+          >
+            <span>{fetchError}</span>
+            <button
+              onClick={fetchListings}
+              className="ml-4 px-3 py-1 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium hover:bg-destructive/90 transition-colors"
+            >
+              Retry
+            </button>
+          </motion.div>
+        )}
+
+        {/* Not authenticated banner */}
+        {!isAuthenticated && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-700 dark:text-amber-400 text-sm"
+          >
+            You need to log in to create and manage your listings.
+          </motion.div>
+        )}
+
+        {/* Loading State */}
+        {isLoading && hostListings.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 gap-4">
+            <Loader2 size={36} className="animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading your properties...</p>
+          </div>
+        ) : hostListings.length > 0 ? (
+          /* Properties Grid */
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence>
               {hostListings.map((property, index) => (
@@ -99,6 +174,7 @@ export default function HostHomeView() {
                   <HostPropertyCard
                     property={property}
                     onDelete={() => handleDelete(property.id)}
+                    isDeleting={deletingId === property.id}
                   />
                 </motion.div>
               ))}
@@ -225,9 +301,11 @@ export default function HostHomeView() {
 function HostPropertyCard({
   property,
   onDelete,
+  isDeleting,
 }: {
   property: Property;
   onDelete: () => void;
+  isDeleting?: boolean;
 }) {
   const [showActions, setShowActions] = useState(false);
 
@@ -286,10 +364,15 @@ function HostPropertyCard({
                       setShowActions(false);
                       onDelete();
                     }}
-                    className="w-full px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2 text-left"
+                    disabled={isDeleting}
+                    className="w-full px-4 py-2 text-sm text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2 text-left disabled:opacity-50"
                   >
-                    <Trash2 size={14} />
-                    Delete
+                    {isDeleting ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={14} />
+                    )}
+                    {isDeleting ? 'Deleting...' : 'Delete'}
                   </button>
                 </motion.div>
               </>

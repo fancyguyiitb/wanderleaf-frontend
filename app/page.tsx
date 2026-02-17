@@ -12,7 +12,7 @@ import { mockProperties } from '@/lib/mock-data';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Home() {
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { properties, setProperties } = usePropertyStore();
   const { userMode } = useAuthStore();
 

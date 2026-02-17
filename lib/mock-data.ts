@@ -166,14 +166,14 @@ export const mockProperties: Property[] = [
 ];
 
 export const categories = [
-  { id: 1, name: 'Mountain Retreats', icon: '⛰️' },
-  { id: 2, name: 'Beach Houses', icon: '🏖️' },
-  { id: 3, name: 'Cabins', icon: '🪵' },
-  { id: 4, name: 'Eco Lodges', icon: '🌿' },
-  { id: 5, name: 'Luxury Villas', icon: '✨' },
-  { id: 6, name: 'Treehouses', icon: '🌳' },
-  { id: 7, name: 'Farms', icon: '🌾' },
-  { id: 8, name: 'Urban Lofts', icon: '🏙️' },
+  { id: 'mountain_retreats', name: 'Mountain Retreats', icon: '⛰️' },
+  { id: 'beach_houses', name: 'Beach Houses', icon: '🏖️' },
+  { id: 'cabins', name: 'Cabins', icon: '🪵' },
+  { id: 'eco_lodges', name: 'Eco Lodges', icon: '🌿' },
+  { id: 'luxury_villas', name: 'Luxury Villas', icon: '✨' },
+  { id: 'treehouses', name: 'Treehouses', icon: '🌳' },
+  { id: 'farms', name: 'Farms', icon: '🌾' },
+  { id: 'urban_lofts', name: 'Urban Lofts', icon: '🏙️' },
 ];
 
 export const amenitiesList = [

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dialog,
@@ -31,14 +31,23 @@ import {
   Check,
   Sparkles,
   X,
+  Loader2,
+  Upload,
+  Trash2,
 } from 'lucide-react';
 import { Property } from '@/lib/store';
+import { listingsApi, CreateListingPayload } from '@/lib/api';
 import { amenitiesList, categories } from '@/lib/mock-data';
 
 interface CreatePropertyFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSubmit: (property: Property) => void;
+}
+
+interface ImageFile {
+  file: File;
+  preview: string;
 }
 
 const STEPS = [
@@ -48,16 +57,9 @@ const STEPS = [
   { id: 4, label: 'Images', icon: ImagePlus },
 ];
 
-const PLACEHOLDER_IMAGES = [
-  'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&h=800&fit=crop',
-  'https://images.unsplash.com/photo-1518156677180-95a2893f3e9f?w=1200&h=800&fit=crop',
-  'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=1200&h=800&fit=crop',
-  'https://images.unsplash.com/photo-1502886129106-94a008556e23?w=1200&h=800&fit=crop',
-  'https://images.unsplash.com/photo-1551632786-de41ec16a66b?w=1200&h=800&fit=crop',
-  'https://images.unsplash.com/photo-1613395877344-13d4a8e0d49e?w=1200&h=800&fit=crop',
-  'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=1200&h=800&fit=crop',
-  'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=1200&h=800&fit=crop',
-];
+const MAX_FILES = 8;
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 export default function CreatePropertyForm({
   open,
@@ -65,6 +67,9 @@ export default function CreatePropertyForm({
   onSubmit,
 }: CreatePropertyFormProps) {
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -75,12 +80,17 @@ export default function CreatePropertyForm({
     bathrooms: '1',
     guests: '2',
     amenities: [] as string[],
-    imageUrls: ['', '', ''],
   });
+  const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetForm = () => {
     setStep(1);
+    setIsSubmitting(false);
+    setUploadProgress(0);
+    setSubmitError(null);
     setFormData({
       title: '',
       description: '',
@@ -91,8 +101,10 @@ export default function CreatePropertyForm({
       bathrooms: '1',
       guests: '2',
       amenities: [],
-      imageUrls: ['', '', ''],
     });
+    imageFiles.forEach((img) => URL.revokeObjectURL(img.preview));
+    setImageFiles([]);
+    setIsDragging(false);
     setErrors({});
   };
 
@@ -110,6 +122,7 @@ export default function CreatePropertyForm({
         return next;
       });
     }
+    setSubmitError(null);
   };
 
   const toggleAmenity = (amenity: string) => {
@@ -121,28 +134,66 @@ export default function CreatePropertyForm({
     }));
   };
 
-  const updateImageUrl = (index: number, value: string) => {
-    setFormData((prev) => {
-      const urls = [...prev.imageUrls];
-      urls[index] = value;
-      return { ...prev, imageUrls: urls };
+  /* ─── Image handling ─── */
+
+  const addFiles = useCallback(
+    (files: FileList | File[]) => {
+      const newFiles: ImageFile[] = [];
+      const fileArray = Array.from(files);
+      const remaining = MAX_FILES - imageFiles.length;
+
+      for (const file of fileArray.slice(0, remaining)) {
+        if (!ACCEPTED_TYPES.includes(file.type)) continue;
+        if (file.size > MAX_FILE_SIZE) continue;
+        newFiles.push({ file, preview: URL.createObjectURL(file) });
+      }
+
+      if (newFiles.length > 0) {
+        setImageFiles((prev) => [...prev, ...newFiles]);
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next.images;
+          return next;
+        });
+      }
+    },
+    [imageFiles.length]
+  );
+
+  const removeImage = (index: number) => {
+    setImageFiles((prev) => {
+      const removed = prev[index];
+      URL.revokeObjectURL(removed.preview);
+      return prev.filter((_, i) => i !== index);
     });
   };
 
-  const addImageSlot = () => {
-    setFormData((prev) => ({
-      ...prev,
-      imageUrls: [...prev.imageUrls, ''],
-    }));
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
   };
 
-  const removeImageSlot = (index: number) => {
-    if (formData.imageUrls.length <= 1) return;
-    setFormData((prev) => ({
-      ...prev,
-      imageUrls: prev.imageUrls.filter((_, i) => i !== index),
-    }));
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
   };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files) {
+      addFiles(e.dataTransfer.files);
+    }
+  };
+
+  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      addFiles(e.target.files);
+    }
+    e.target.value = '';
+  };
+
+  /* ─── Validation ─── */
 
   const validateStep = (currentStep: number): boolean => {
     const newErrors: Record<string, string> = {};
@@ -155,6 +206,10 @@ export default function CreatePropertyForm({
 
     if (currentStep === 2) {
       if (!formData.price || Number(formData.price) <= 0) newErrors.price = 'Enter a valid price';
+    }
+
+    if (currentStep === 4) {
+      if (imageFiles.length === 0) newErrors.images = 'Add at least one image';
     }
 
     setErrors(newErrors);
@@ -171,38 +226,51 @@ export default function CreatePropertyForm({
     setStep((s) => Math.max(s - 1, 1));
   };
 
-  const handleSubmit = () => {
-    const images = formData.imageUrls.filter((url) => url.trim() !== '');
-    const finalImages =
-      images.length > 0
-        ? images
-        : PLACEHOLDER_IMAGES.slice(0, 3);
+  /* ─── Submit: upload images then create listing ─── */
 
-    const newProperty: Property = {
-      id: `host-${Date.now()}`,
-      title: formData.title,
-      description: formData.description,
-      location: formData.location,
-      coordinates: { lat: 0, lng: 0 },
-      price: Number(formData.price),
-      rating: 0,
-      reviews: 0,
-      images: finalImages,
-      amenities: formData.amenities,
-      bedrooms: Number(formData.bedrooms),
-      bathrooms: Number(formData.bathrooms),
-      guests: Number(formData.guests),
-      host: {
-        id: 'current-user',
-        name: 'You',
-        rating: 0,
-        isVerified: false,
-      },
-      createdAt: new Date().toISOString().split('T')[0],
-    };
+  const handleSubmit = async () => {
+    if (!validateStep(4)) return;
 
-    onSubmit(newProperty);
-    handleOpenChange(false);
+    setIsSubmitting(true);
+    setSubmitError(null);
+    setUploadProgress(0);
+
+    try {
+      const uploadRes = await listingsApi.uploadImages(
+        imageFiles.map((img) => img.file),
+        (percent) => setUploadProgress(percent)
+      );
+
+      if (uploadRes.urls.length === 0) {
+        throw new Error(
+          uploadRes.errors.length > 0
+            ? uploadRes.errors.join(' ')
+            : 'No images were uploaded successfully.'
+        );
+      }
+
+      const payload: CreateListingPayload = {
+        title: formData.title,
+        description: formData.description,
+        location: formData.location,
+        category: formData.category || undefined,
+        price_per_night: Number(formData.price).toFixed(2),
+        bedrooms: Number(formData.bedrooms),
+        bathrooms: formData.bathrooms,
+        max_guests: Number(formData.guests),
+        amenities: formData.amenities,
+        images: uploadRes.urls,
+      };
+
+      const created = await listingsApi.create(payload);
+      onSubmit(created);
+      handleOpenChange(false);
+    } catch (err: any) {
+      setSubmitError(err.message || 'Failed to create listing. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+      setUploadProgress(0);
+    }
   };
 
   return (
@@ -332,7 +400,7 @@ export default function CreatePropertyForm({
                     </SelectTrigger>
                     <SelectContent>
                       {categories.map((cat) => (
-                        <SelectItem key={cat.id} value={String(cat.id)}>
+                        <SelectItem key={cat.id} value={cat.id}>
                           {cat.icon} {cat.name}
                         </SelectItem>
                       ))}
@@ -526,65 +594,96 @@ export default function CreatePropertyForm({
                 <div>
                   <Label className="text-sm font-medium text-foreground">Property Images</Label>
                   <p className="text-xs text-muted-foreground mt-1">
-                    Add image URLs for your property. Leave blank to use placeholder images.
+                    Upload up to {MAX_FILES} images of your property (JPEG, PNG, WebP, GIF &mdash; max 10 MB each)
                   </p>
                 </div>
 
-                <div className="space-y-3">
-                  {formData.imageUrls.map((url, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div className="flex-1">
-                        <Input
-                          placeholder={`Image URL ${index + 1} (e.g. https://images.unsplash.com/...)`}
-                          value={url}
-                          onChange={(e) => updateImageUrl(index, e.target.value)}
+                {/* Drag-and-drop zone */}
+                {imageFiles.length < MAX_FILES && (
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`relative border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+                      isDragging
+                        ? 'border-primary bg-primary/5 scale-[1.01]'
+                        : errors.images
+                        ? 'border-destructive bg-destructive/5'
+                        : 'border-border hover:border-primary/50 bg-card/50'
+                    }`}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      multiple
+                      onChange={handleFileInput}
+                      className="hidden"
+                    />
+                    <div className="flex flex-col items-center gap-3">
+                      <div
+                        className={`w-14 h-14 rounded-full flex items-center justify-center transition-colors ${
+                          isDragging ? 'bg-primary/20' : 'bg-muted'
+                        }`}
+                      >
+                        <Upload
+                          size={24}
+                          className={isDragging ? 'text-primary' : 'text-muted-foreground'}
                         />
                       </div>
-                      {formData.imageUrls.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeImageSlot(index)}
-                          className="p-2 text-muted-foreground hover:text-destructive transition-colors"
-                        >
-                          <X size={18} />
-                        </button>
+                      <div>
+                        <p className="font-medium text-foreground">
+                          {isDragging ? 'Drop your images here' : 'Drag & drop images here'}
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          or{' '}
+                          <span className="text-primary font-medium">click to browse</span>
+                        </p>
+                      </div>
+                      {imageFiles.length > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          {imageFiles.length}/{MAX_FILES} images added
+                        </p>
                       )}
                     </div>
-                  ))}
-                </div>
-
-                {formData.imageUrls.length < 8 && (
-                  <button
-                    type="button"
-                    onClick={addImageSlot}
-                    className="flex items-center gap-2 text-sm text-primary font-medium hover:underline"
-                  >
-                    <ImagePlus size={16} />
-                    Add another image
-                  </button>
+                  </div>
                 )}
 
-                {/* Image Preview */}
-                {formData.imageUrls.some((url) => url.trim()) && (
-                  <div className="grid grid-cols-3 gap-3 mt-4">
-                    {formData.imageUrls
-                      .filter((url) => url.trim())
-                      .map((url, index) => (
-                        <div
-                          key={index}
-                          className="aspect-video rounded-lg overflow-hidden bg-muted border border-border"
+                {errors.images && <p className="text-xs text-destructive">{errors.images}</p>}
+
+                {/* Image previews */}
+                {imageFiles.length > 0 && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {imageFiles.map((img, index) => (
+                      <motion.div
+                        key={img.preview}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="relative group aspect-video rounded-lg overflow-hidden bg-muted border border-border"
+                      >
+                        <img
+                          src={img.preview}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        {index === 0 && (
+                          <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-primary text-primary-foreground uppercase tracking-wide">
+                            Cover
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute top-2 right-2 p-1.5 rounded-full bg-foreground/70 text-background opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
                         >
-                          <img
-                            src={url}
-                            alt={`Preview ${index + 1}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src =
-                                'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="60"><rect fill="%23eee" width="100" height="60"/><text fill="%23999" x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-size="10">Invalid URL</text></svg>';
-                            }}
-                          />
+                          <Trash2 size={14} />
+                        </button>
+                        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-md text-[10px] font-medium bg-foreground/60 text-background backdrop-blur-sm">
+                          {(img.file.size / (1024 * 1024)).toFixed(1)} MB
                         </div>
-                      ))}
+                      </motion.div>
+                    ))}
                   </div>
                 )}
 
@@ -608,6 +707,10 @@ export default function CreatePropertyForm({
                     <span>&bull;</span>
                     <span className="text-primary font-semibold">${formData.price}/night</span>
                   </div>
+                  <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                    <ImagePlus size={12} />
+                    {imageFiles.length} {imageFiles.length === 1 ? 'image' : 'images'} ready to upload
+                  </div>
                   {formData.amenities.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-3">
                       {formData.amenities.map((a) => (
@@ -621,6 +724,13 @@ export default function CreatePropertyForm({
                     </div>
                   )}
                 </div>
+
+                {/* Error Message */}
+                {submitError && (
+                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-destructive text-sm">
+                    {submitError}
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
@@ -634,7 +744,8 @@ export default function CreatePropertyForm({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleBack}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-border text-foreground font-medium hover:bg-muted transition-colors"
+                disabled={isSubmitting}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-lg border border-border text-foreground font-medium hover:bg-muted transition-colors disabled:opacity-50"
               >
                 <ArrowLeft size={16} />
                 Back
@@ -654,15 +765,40 @@ export default function CreatePropertyForm({
                 <ArrowRight size={16} />
               </motion.button>
             ) : (
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleSubmit}
-                className="flex items-center gap-2 px-8 py-2.5 rounded-lg bg-accent text-accent-foreground font-semibold hover:bg-accent/90 transition-colors shadow-md"
-              >
-                <Check size={18} />
-                Publish Listing
-              </motion.button>
+              <div className="flex flex-col items-end gap-1.5">
+                {isSubmitting && uploadProgress > 0 && uploadProgress < 100 && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <div className="w-24 h-1.5 rounded-full bg-muted overflow-hidden">
+                      <motion.div
+                        className="h-full bg-primary rounded-full"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${uploadProgress}%` }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </div>
+                    Uploading {uploadProgress}%
+                  </div>
+                )}
+                <motion.button
+                  whileHover={!isSubmitting ? { scale: 1.05 } : undefined}
+                  whileTap={!isSubmitting ? { scale: 0.95 } : undefined}
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="flex items-center gap-2 px-8 py-2.5 rounded-lg bg-accent text-accent-foreground font-semibold hover:bg-accent/90 transition-colors shadow-md disabled:opacity-70"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      {uploadProgress < 100 ? 'Uploading Images...' : 'Creating Listing...'}
+                    </>
+                  ) : (
+                    <>
+                      <Check size={18} />
+                      Publish Listing
+                    </>
+                  )}
+                </motion.button>
+              </div>
             )}
           </div>
         </div>
