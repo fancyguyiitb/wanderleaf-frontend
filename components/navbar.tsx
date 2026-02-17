@@ -2,12 +2,23 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Menu, X, Heart, User, Bell } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useAuthStore } from '@/lib/store';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [userMode, setUserMode] = useState<'user' | 'owner'>('user');
+  const { userMode, setUserMode } = useAuthStore();
+  const router = useRouter();
+
+  const handleModeChange = (mode: 'guest' | 'host') => {
+    setUserMode(mode);
+    if (mode === 'host') {
+      router.push('/');
+    } else {
+      router.push('/');
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-50 bg-background border-b border-border shadow-sm">
@@ -25,9 +36,15 @@ export default function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
-            <Link href="/become-host" className="text-foreground hover:text-primary transition-colors text-sm font-medium">
-              Switch to Hosting
-            </Link>
+            {userMode === 'guest' ? (
+              <Link href="/" className="text-foreground hover:text-primary transition-colors text-sm font-medium">
+                Switch to Hosting
+              </Link>
+            ) : (
+              <Link href="/" className="text-foreground hover:text-accent transition-colors text-sm font-medium">
+                Switch to Traveling
+              </Link>
+            )}
             <button className="text-foreground hover:text-primary transition-colors">
               <Bell size={20} />
             </button>
@@ -40,9 +57,9 @@ export default function Navbar() {
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex bg-secondary rounded-full p-1 gap-2">
               <button
-                onClick={() => setUserMode('user')}
+                onClick={() => handleModeChange('guest')}
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                  userMode === 'user'
+                  userMode === 'guest'
                     ? 'bg-primary text-primary-foreground'
                     : 'text-foreground hover:bg-muted'
                 }`}
@@ -50,9 +67,9 @@ export default function Navbar() {
                 Guest
               </button>
               <button
-                onClick={() => setUserMode('owner')}
+                onClick={() => handleModeChange('host')}
                 className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                  userMode === 'owner'
+                  userMode === 'host'
                     ? 'bg-accent text-accent-foreground'
                     : 'text-foreground hover:bg-muted'
                 }`}
@@ -80,14 +97,26 @@ export default function Navbar() {
         {isMenuOpen && (
           <div className="md:hidden pb-4 border-t border-border">
             <div className="flex flex-col gap-4 py-4">
-              <Link href="/become-host" className="text-foreground hover:text-primary transition-colors">
-                Switch to Hosting
-              </Link>
+              {userMode === 'guest' ? (
+                <button
+                  onClick={() => { handleModeChange('host'); setIsMenuOpen(false); }}
+                  className="text-foreground hover:text-primary transition-colors text-left"
+                >
+                  Switch to Hosting
+                </button>
+              ) : (
+                <button
+                  onClick={() => { handleModeChange('guest'); setIsMenuOpen(false); }}
+                  className="text-foreground hover:text-accent transition-colors text-left"
+                >
+                  Switch to Traveling
+                </button>
+              )}
               <div className="flex bg-secondary rounded-full p-1 gap-2">
                 <button
-                  onClick={() => setUserMode('user')}
+                  onClick={() => { handleModeChange('guest'); setIsMenuOpen(false); }}
                   className={`flex-1 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                    userMode === 'user'
+                    userMode === 'guest'
                       ? 'bg-primary text-primary-foreground'
                       : 'text-foreground hover:bg-muted'
                   }`}
@@ -95,9 +124,9 @@ export default function Navbar() {
                   Guest
                 </button>
                 <button
-                  onClick={() => setUserMode('owner')}
+                  onClick={() => { handleModeChange('host'); setIsMenuOpen(false); }}
                   className={`flex-1 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                    userMode === 'owner'
+                    userMode === 'host'
                       ? 'bg-accent text-accent-foreground'
                       : 'text-foreground hover:bg-muted'
                   }`}
