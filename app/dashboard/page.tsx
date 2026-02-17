@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import CreatePropertyForm from '@/components/create-property-form';
+import DeletePropertyDialog from '@/components/delete-property-dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Heart,
@@ -53,6 +54,7 @@ export default function DashboardPage() {
   const [isLoadingListings, setIsLoadingListings] = useState(false);
   const [listingsError, setListingsError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
 
   const handleLogout = () => {
     logout();
@@ -84,8 +86,15 @@ export default function DashboardPage() {
     addHostListing(property);
   };
 
-  const handleDelete = async (id: string) => {
+  const requestDelete = (id: string, title: string) => {
+    setDeleteConfirm({ id, title });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
+    const { id } = deleteConfirm;
     setDeletingId(id);
+    setDeleteConfirm(null);
     try {
       await listingsApi.remove(id);
       setTimeout(() => {
@@ -309,7 +318,7 @@ export default function DashboardPage() {
                       >
                         <DashboardPropertyCard
                           property={property}
-                          onDelete={() => handleDelete(property.id)}
+                          onDelete={() => requestDelete(property.id, property.title)}
                           isDeleting={deletingId === property.id}
                         />
                       </motion.div>
@@ -537,6 +546,15 @@ export default function DashboardPage() {
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
         onSubmit={handleCreateProperty}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeletePropertyDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}
+        propertyTitle={deleteConfirm?.title ?? ''}
+        isDeleting={!!deletingId}
+        onConfirm={handleConfirmDelete}
       />
 
       <Footer />

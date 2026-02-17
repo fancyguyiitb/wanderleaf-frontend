@@ -22,6 +22,7 @@ import { useHostListingStore, useAuthStore, Property } from '@/lib/store';
 import { listingsApi } from '@/lib/api';
 import HostHeroSection from '@/components/host-hero-section';
 import CreatePropertyForm from '@/components/create-property-form';
+import DeletePropertyDialog from '@/components/delete-property-dialog';
 
 export default function HostHomeView() {
   const { hostListings, addHostListing, removeHostListing, setHostListings } =
@@ -29,6 +30,7 @@ export default function HostHomeView() {
   const { isAuthenticated } = useAuthStore();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
@@ -54,8 +56,15 @@ export default function HostHomeView() {
     addHostListing(property);
   };
 
-  const handleDelete = async (id: string) => {
+  const requestDelete = (id: string, title: string) => {
+    setDeleteConfirm({ id, title });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirm) return;
+    const { id } = deleteConfirm;
     setDeletingId(id);
+    setDeleteConfirm(null);
     try {
       await listingsApi.remove(id);
       setTimeout(() => {
@@ -173,7 +182,7 @@ export default function HostHomeView() {
                 >
                   <HostPropertyCard
                     property={property}
-                    onDelete={() => handleDelete(property.id)}
+                    onDelete={() => requestDelete(property.id, property.title)}
                     isDeleting={deletingId === property.id}
                   />
                 </motion.div>
@@ -291,6 +300,15 @@ export default function HostHomeView() {
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
         onSubmit={handleCreateProperty}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <DeletePropertyDialog
+        open={!!deleteConfirm}
+        onOpenChange={(open) => { if (!open) setDeleteConfirm(null); }}
+        propertyTitle={deleteConfirm?.title ?? ''}
+        isDeleting={!!deletingId}
+        onConfirm={handleConfirmDelete}
       />
     </>
   );
