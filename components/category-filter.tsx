@@ -7,14 +7,14 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRef } from 'react';
 
 interface CategoryFilterProps {
-  onCategoryChange?: (categoryId: number | null) => void;
+  onCategoryChange?: (categoryId: string | null) => void;
 }
 
 export default function CategoryFilter({ onCategoryChange }: CategoryFilterProps) {
-  const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  const handleCategoryClick = (categoryId: number) => {
+  const handleCategoryClick = (categoryId: string) => {
     const newCategory = selectedCategory === categoryId ? null : categoryId;
     setSelectedCategory(newCategory);
     onCategoryChange?.(newCategory);

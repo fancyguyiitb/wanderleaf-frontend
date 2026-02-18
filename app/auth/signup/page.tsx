@@ -99,7 +99,7 @@ export default function SignupPage() {
 
     try {
       // Create the user
-      const user = await apiFetch<{ id: number; username: string; email: string }>(
+      const user = await apiFetch<{ id: string; username: string; email: string }>(
         '/api/v1/auth/register/',
         {
           method: 'POST',

@@ -64,6 +64,14 @@ interface PropertyStore {
   setProperties: (properties: Property[]) => void;
 }
 
+interface HostListingStore {
+  hostListings: Property[];
+  addHostListing: (listing: Property) => void;
+  removeHostListing: (listingId: string) => void;
+  updateHostListing: (listingId: string, updates: Partial<Property>) => void;
+  setHostListings: (listings: Property[]) => void;
+}
+
 interface BookingStore {
   bookings: Booking[];
   addBooking: (booking: Booking) => void;
@@ -112,6 +120,25 @@ export const usePropertyStore = create<PropertyStore>((set) => ({
       ),
     })),
   setProperties: (properties) => set({ properties }),
+}));
+
+export const useHostListingStore = create<HostListingStore>((set) => ({
+  hostListings: [],
+  addHostListing: (listing) =>
+    set((state) => ({
+      hostListings: [listing, ...state.hostListings],
+    })),
+  removeHostListing: (listingId) =>
+    set((state) => ({
+      hostListings: state.hostListings.filter((l) => l.id !== listingId),
+    })),
+  updateHostListing: (listingId, updates) =>
+    set((state) => ({
+      hostListings: state.hostListings.map((l) =>
+        l.id === listingId ? { ...l, ...updates } : l
+      ),
+    })),
+  setHostListings: (listings) => set({ hostListings: listings }),
 }));
 
 export const useBookingStore = create<BookingStore>((set) => ({

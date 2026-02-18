@@ -1,3 +1,7 @@
+import { useAuthStore, Property } from './store';
+
+/* ─── Base URL ─── */
+
 const getBaseUrl = () => {
   const env = process.env.NEXT_PUBLIC_ENV ?? process.env.NODE_ENV;
 
@@ -18,6 +22,10 @@ const getBaseUrl = () => {
   return devBase;
 };
 
+export const getApiBaseUrl = () => getBaseUrl();
+
+/* ─── Generic fetch ─── */
+
 export const apiFetch = async <TResponse>(
   path: string,
   options: RequestInit & { skipAuthHeader?: boolean } = {}
@@ -27,20 +35,28 @@ export const apiFetch = async <TResponse>(
 
   const { skipAuthHeader, headers, ...rest } = options;
 
+  const mergedHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(headers as Record<string, string> || {}),
+  };
+
+  if (!skipAuthHeader) {
+    const token = useAuthStore.getState().accessToken;
+    if (token) {
+      mergedHeaders['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
   try {
     const response = await fetch(url, {
       ...rest,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(headers || {}),
-      },
+      headers: mergedHeaders,
     });
 
     let data: unknown;
     try {
       data = await response.json();
     } catch {
-      // Non-JSON response
       if (!response.ok) {
         console.error('[apiFetch] Non-JSON error response', {
           url,
@@ -78,5 +94,228 @@ export const apiFetch = async <TResponse>(
   }
 };
 
-export const getApiBaseUrl = () => getBaseUrl();
+/* ─── Backend response types ─── */
 
+export interface ApiListingHost {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string | null;
+}
+
+export interface ApiListing {
+  id: string;
+  title: string;
+  description?: string;
+  location: string;
+  category: string;
+  price_per_night: string;
+  bedrooms: number;
+  bathrooms: string;
+  max_guests: number;
+  amenities: string[];
+  images: string[];
+  latitude: string | null;
+  longitude: string | null;
+  is_active: boolean;
+  host: ApiListingHost;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiPaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+/* ─── Mapper: backend → frontend Property ─── */
+
+export function mapApiListingToProperty(api: ApiListing): Property {
+  return {
+    id: api.id,
+    title: api.title,
+    description: api.description ?? '',
+    location: api.location,
+    coordinates: {
+      lat: api.latitude ? Number(api.latitude) : 0,
+      lng: api.longitude ? Number(api.longitude) : 0,
+    },
+    price: Number(api.price_per_night),
+    rating: 0,
+    reviews: 0,
+    images: api.images,
+    amenities: api.amenities,
+    bedrooms: api.bedrooms,
+    bathrooms: Number(api.bathrooms),
+    guests: api.max_guests,
+    host: {
+      id: api.host.id,
+      name: api.host.name,
+      avatar: api.host.avatar ?? undefined,
+      rating: 0,
+      isVerified: false,
+    },
+    createdAt: api.created_at,
+  };
+}
+
+/* ─── Listing create payload ─── */
+
+export interface CreateListingPayload {
+  title: string;
+  description: string;
+  location: string;
+  category?: string;
+  price_per_night: string;
+  bedrooms: number;
+  bathrooms: string;
+  max_guests: number;
+  amenities: string[];
+  images: string[];
+  latitude?: string;
+  longitude?: string;
+}
+
+/* ─── Multipart fetch (for file uploads) ─── */
+
+export const apiUpload = async <TResponse>(
+  path: string,
+  formData: FormData,
+  onProgress?: (percent: number) => void
+): Promise<TResponse> => {
+  const baseUrl = getBaseUrl();
+  const url = `${baseUrl}${path}`;
+
+  const token = useAuthStore.getState().accessToken;
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  if (onProgress) {
+    return new Promise<TResponse>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url);
+      Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          onProgress(Math.round((e.loaded / e.total) * 100));
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(data as TResponse);
+          } else {
+            reject(new Error(data?.detail || 'Upload failed.'));
+          }
+        } catch {
+          reject(new Error('Upload failed with non-JSON response.'));
+        }
+      });
+
+      xhr.addEventListener('error', () => reject(new Error('Network error during upload.')));
+      xhr.addEventListener('abort', () => reject(new Error('Upload was cancelled.')));
+
+      xhr.send(formData);
+    });
+  }
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: formData,
+  });
+
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error('Upload failed with non-JSON response.');
+  }
+
+  if (!response.ok) {
+    throw new Error((data as any)?.detail || 'Upload failed.');
+  }
+
+  return data as TResponse;
+};
+
+/* ─── Upload response type ─── */
+
+export interface UploadImagesResponse {
+  urls: string[];
+  uploaded: number;
+  errors: string[];
+}
+
+/* ─── Listings API ─── */
+
+export const listingsApi = {
+  async uploadImages(
+    files: File[],
+    onProgress?: (percent: number) => void
+  ): Promise<UploadImagesResponse> {
+    const formData = new FormData();
+    files.forEach((file) => formData.append('images', file));
+    return apiUpload<UploadImagesResponse>(
+      '/api/v1/listings/upload-images/',
+      formData,
+      onProgress
+    );
+  },
+
+  async create(payload: CreateListingPayload): Promise<Property> {
+    const data = await apiFetch<ApiListing>('/api/v1/listings/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return mapApiListingToProperty(data);
+  },
+
+  async getMyListings(): Promise<Property[]> {
+    const data = await apiFetch<ApiPaginatedResponse<ApiListing>>('/api/v1/listings/my/');
+    return data.results.map(mapApiListingToProperty);
+  },
+
+  async getAll(): Promise<Property[]> {
+    const data = await apiFetch<ApiPaginatedResponse<ApiListing>>('/api/v1/listings/', {
+      skipAuthHeader: true,
+    });
+    return data.results.map(mapApiListingToProperty);
+  },
+
+  async getById(id: string): Promise<Property> {
+    const data = await apiFetch<ApiListing>(`/api/v1/listings/${id}/`, {
+      skipAuthHeader: true,
+    });
+    return mapApiListingToProperty(data);
+  },
+
+  async update(id: string, payload: Partial<CreateListingPayload>): Promise<Property> {
+    const data = await apiFetch<ApiListing>(`/api/v1/listings/${id}/`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    return mapApiListingToProperty(data);
+  },
+
+  async remove(id: string): Promise<void> {
+    await apiFetch(`/api/v1/listings/${id}/`, {
+      method: 'DELETE',
+    });
+  },
+
+  async getByHost(hostId: string): Promise<Property[]> {
+    const data = await apiFetch<ApiPaginatedResponse<ApiListing>>(
+      `/api/v1/listings/host/${hostId}/`,
+      { skipAuthHeader: true }
+    );
+    return data.results.map(mapApiListingToProperty);
+  },
+};
