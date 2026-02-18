@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { categories } from '@/lib/mock-data';
+import { categories } from '@/lib/constants';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useRef } from 'react';
 

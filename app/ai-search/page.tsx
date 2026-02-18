@@ -6,11 +6,12 @@ import Footer from '@/components/footer';
 import PropertyCard from '@/components/property-card';
 import { Sparkles, Send, Loader } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { mockProperties } from '@/lib/mock-data';
+import { listingsApi } from '@/lib/api';
+import { Property } from '@/lib/store';
 
 interface SearchResult {
   query: string;
-  results: typeof mockProperties;
+  results: Property[];
   tags: string[];
 }
 
@@ -20,7 +21,6 @@ export default function AISearchPage() {
   const [searchHistory, setSearchHistory] = useState<SearchResult[]>([]);
   const [currentResults, setCurrentResults] = useState<SearchResult | null>(null);
 
-  // Example AI suggestions
   const suggestions = [
     'A cozy cabin near mountains for 4 people under $150 per night',
     'Beachfront villa with pool in tropical location',
@@ -35,42 +35,59 @@ export default function AISearchPage() {
     setIsLoading(true);
     setQuery(searchQuery);
 
-    // Simulate AI processing
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const allListings = await listingsApi.getAll();
 
-    // Parse keywords from query (mock AI parsing)
-    const keywords = searchQuery.toLowerCase();
-    const isMountain = keywords.includes('mountain') || keywords.includes('cabin') || keywords.includes('forest');
-    const isBeach = keywords.includes('beach') || keywords.includes('ocean') || keywords.includes('coastal');
-    const isLuxury = keywords.includes('luxury') || keywords.includes('villa') || keywords.includes('premium');
+      const keywords = searchQuery.toLowerCase();
+      const isMountain = keywords.includes('mountain') || keywords.includes('cabin') || keywords.includes('forest');
+      const isBeach = keywords.includes('beach') || keywords.includes('ocean') || keywords.includes('coastal');
+      const isLuxury = keywords.includes('luxury') || keywords.includes('villa') || keywords.includes('premium');
 
-    // Filter results based on keywords (mock filtering)
-    let filteredResults = mockProperties;
-    if (isMountain) {
-      filteredResults = mockProperties.filter((p) => p.location.includes('Colorado') || p.location.includes('Switzerland') || p.location.includes('Germany'));
-    } else if (isBeach) {
-      filteredResults = mockProperties.filter((p) => p.location.includes('Costa Rica') || p.location.includes('Caribbean'));
-    } else if (isLuxury) {
-      filteredResults = mockProperties.filter((p) => p.price > 200);
+      let filteredResults = allListings;
+      if (isMountain) {
+        filteredResults = allListings.filter((p) =>
+          p.location.toLowerCase().includes('mountain') ||
+          p.title.toLowerCase().includes('cabin') ||
+          p.title.toLowerCase().includes('forest')
+        );
+      } else if (isBeach) {
+        filteredResults = allListings.filter((p) =>
+          p.location.toLowerCase().includes('beach') ||
+          p.title.toLowerCase().includes('beach') ||
+          p.location.toLowerCase().includes('coast')
+        );
+      } else if (isLuxury) {
+        filteredResults = allListings.filter((p) => p.price > 200);
+      }
+
+      if (filteredResults.length === 0) {
+        filteredResults = allListings;
+      }
+
+      const tags: string[] = [];
+      if (isMountain) tags.push('Mountain');
+      if (isBeach) tags.push('Beach');
+      if (isLuxury) tags.push('Luxury');
+      if (keywords.includes('4 people') || keywords.includes('family')) tags.push('Family-Friendly');
+      if (keywords.includes('$150')) tags.push('Budget-Friendly');
+
+      const result: SearchResult = {
+        query: searchQuery,
+        results: filteredResults,
+        tags: tags.length > 0 ? tags : ['Recommended'],
+      };
+
+      setCurrentResults(result);
+      setSearchHistory((prev) => [result, ...prev].slice(0, 5));
+    } catch {
+      setCurrentResults({
+        query: searchQuery,
+        results: [],
+        tags: ['Error'],
+      });
+    } finally {
+      setIsLoading(false);
     }
-
-    // Extract tags
-    const tags = [];
-    if (isMountain) tags.push('Mountain');
-    if (isBeach) tags.push('Beach');
-    if (isLuxury) tags.push('Luxury');
-    if (keywords.includes('4 people') || keywords.includes('family')) tags.push('Family-Friendly');
-    if (keywords.includes('$150')) tags.push('Budget-Friendly');
-
-    const result: SearchResult = {
-      query: searchQuery,
-      results: filteredResults,
-      tags: tags.length > 0 ? tags : ['Recommended'],
-    };
-
-    setCurrentResults(result);
-    setSearchHistory((prev) => [result, ...prev].slice(0, 5));
-    setIsLoading(false);
   };
 
   const handleSuggestClick = (suggestion: string) => {

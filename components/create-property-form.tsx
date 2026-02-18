@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { Property } from '@/lib/store';
 import { listingsApi, CreateListingPayload } from '@/lib/api';
-import { amenitiesList, categories } from '@/lib/mock-data';
+import { amenitiesList, categories } from '@/lib/constants';
 
 interface CreatePropertyFormProps {
   open: boolean;

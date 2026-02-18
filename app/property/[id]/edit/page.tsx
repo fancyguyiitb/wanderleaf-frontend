@@ -31,7 +31,7 @@ import {
 import { motion } from 'framer-motion';
 import { listingsApi, CreateListingPayload } from '@/lib/api';
 import { useAuthStore, useHostListingStore, Property } from '@/lib/store';
-import { amenitiesList, categories } from '@/lib/mock-data';
+import { amenitiesList, categories } from '@/lib/constants';
 
 const MAX_FILES = 8;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;

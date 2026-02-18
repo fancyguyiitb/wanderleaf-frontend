@@ -8,16 +8,40 @@ import CategoryFilter from '@/components/category-filter';
 import PropertyCard from '@/components/property-card';
 import HostHomeView from '@/components/host-home-view';
 import { usePropertyStore, useAuthStore } from '@/lib/store';
-import { mockProperties } from '@/lib/mock-data';
+import { listingsApi } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { properties, setProperties } = usePropertyStore();
   const { userMode } = useAuthStore();
 
   useEffect(() => {
-    setProperties(mockProperties);
+    let cancelled = false;
+
+    const fetchListings = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await listingsApi.getAll();
+        if (!cancelled) {
+          setProperties(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load listings');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchListings();
+    return () => { cancelled = true; };
   }, [setProperties]);
 
   const filteredProperties = selectedCategory
@@ -80,21 +104,53 @@ export default function Home() {
                   </p>
                 </motion.div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredProperties.map((property, index) => (
-                    <PropertyCard key={property.id} property={property} index={index} />
-                  ))}
-                </div>
-
-                {filteredProperties.length === 0 && (
+                {loading ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="animate-pulse rounded-xl overflow-hidden">
+                        <div className="bg-muted h-64 w-full" />
+                        <div className="p-4 space-y-3">
+                          <div className="bg-muted h-5 w-3/4 rounded" />
+                          <div className="bg-muted h-4 w-1/2 rounded" />
+                          <div className="bg-muted h-4 w-1/4 rounded" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : error ? (
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     className="text-center py-12"
                   >
-                    <h3 className="text-xl font-semibold text-foreground mb-2">No properties found</h3>
-                    <p className="text-muted-foreground">Try adjusting your filters or search criteria</p>
+                    <h3 className="text-xl font-semibold text-foreground mb-2">Something went wrong</h3>
+                    <p className="text-muted-foreground mb-4">{error}</p>
+                    <button
+                      onClick={() => window.location.reload()}
+                      className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+                    >
+                      Try Again
+                    </button>
                   </motion.div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filteredProperties.map((property, index) => (
+                        <PropertyCard key={property.id} property={property} index={index} />
+                      ))}
+                    </div>
+
+                    {filteredProperties.length === 0 && (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-center py-12"
+                      >
+                        <h3 className="text-xl font-semibold text-foreground mb-2">No properties found</h3>
+                        <p className="text-muted-foreground">Try adjusting your filters or search criteria</p>
+                      </motion.div>
+                    )}
+                  </>
                 )}
               </section>
 

@@ -27,7 +27,6 @@ import {
   Eye,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { mockProperties } from '@/lib/mock-data';
 import { useAuthStore, useHostListingStore, Property } from '@/lib/store';
 import { listingsApi } from '@/lib/api';
 import { getAvatarUrl } from '@/lib/avatar';
@@ -114,28 +113,17 @@ export default function DashboardPage() {
     verified: false,
   };
 
-  const bookings = [
-    {
-      id: 'b1',
-      propertyId: '1',
-      checkIn: '2024-03-15',
-      checkOut: '2024-03-20',
-      status: 'confirmed',
-      totalPrice: 925,
-      property: mockProperties[0],
-    },
-    {
-      id: 'b2',
-      propertyId: '2',
-      checkIn: '2024-04-10',
-      checkOut: '2024-04-17',
-      status: 'pending',
-      totalPrice: 1715,
-      property: mockProperties[1],
-    },
-  ];
+  const bookings: {
+    id: string;
+    propertyId: string;
+    checkIn: string;
+    checkOut: string;
+    status: string;
+    totalPrice: number;
+    property: Property;
+  }[] = [];
 
-  const savedProperties = mockProperties.slice(0, 3);
+  const savedProperties: Property[] = [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -369,130 +357,154 @@ export default function DashboardPage() {
 
             {/* ── Trips Tab ── */}
             <TabsContent value="trips" className="space-y-4">
-              <div className="space-y-4">
-                {bookings.map((booking, index) => (
-                  <motion.div
-                    key={booking.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="card-elegant overflow-hidden hover:shadow-lg transition-shadow"
-                  >
-                    <div className="flex flex-col sm:flex-row gap-6 p-6">
-                      <div className="w-full sm:w-48 h-40 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
-                        <img
-                          src={booking.property.images[0]}
-                          alt={booking.property.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <div className="flex-1 flex flex-col justify-between">
-                        <div>
-                          <h3 className="font-playfair font-bold text-lg text-foreground mb-2">
-                            {booking.property.title}
-                          </h3>
-                          <p className="text-muted-foreground flex items-center gap-2 mb-2">
-                            <MapPin size={16} />
-                            {booking.property.location}
-                          </p>
-                          <div className="flex flex-col sm:flex-row gap-4 text-sm text-foreground mb-4">
-                            <span className="flex items-center gap-2">
-                              <Calendar size={16} />
-                              Check-in: {formatDate(booking.checkIn)}
-                            </span>
-                            <span className="flex items-center gap-2">
-                              <Calendar size={16} />
-                              Check-out: {formatDate(booking.checkOut)}
-                            </span>
-                          </div>
+              {bookings.length > 0 ? (
+                <div className="space-y-4">
+                  {bookings.map((booking, index) => (
+                    <motion.div
+                      key={booking.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="card-elegant overflow-hidden hover:shadow-lg transition-shadow"
+                    >
+                      <div className="flex flex-col sm:flex-row gap-6 p-6">
+                        <div className="w-full sm:w-48 h-40 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
+                          <img
+                            src={booking.property.images[0]}
+                            alt={booking.property.title}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
-                        <div className="flex items-center justify-between">
+                        <div className="flex-1 flex flex-col justify-between">
                           <div>
-                            <p className="text-muted-foreground text-sm">Total Paid</p>
-                            <p className="text-2xl font-bold text-primary">${booking.totalPrice}</p>
+                            <h3 className="font-playfair font-bold text-lg text-foreground mb-2">
+                              {booking.property.title}
+                            </h3>
+                            <p className="text-muted-foreground flex items-center gap-2 mb-2">
+                              <MapPin size={16} />
+                              {booking.property.location}
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-4 text-sm text-foreground mb-4">
+                              <span className="flex items-center gap-2">
+                                <Calendar size={16} />
+                                Check-in: {formatDate(booking.checkIn)}
+                              </span>
+                              <span className="flex items-center gap-2">
+                                <Calendar size={16} />
+                                Check-out: {formatDate(booking.checkOut)}
+                              </span>
+                            </div>
                           </div>
-                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
-                            {getStatusText(booking.status)}
-                          </span>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-muted-foreground text-sm">Total Paid</p>
+                              <p className="text-2xl font-bold text-primary">${booking.totalPrice}</p>
+                            </div>
+                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
+                              {getStatusText(booking.status)}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-16">
+                  <Calendar size={48} className="mx-auto text-muted-foreground mb-4" />
+                  <h3 className="font-playfair text-xl font-bold text-foreground mb-2">No Trips Yet</h3>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    When you book a stay, your trips will appear here.
+                  </p>
+                </div>
+              )}
             </TabsContent>
 
             {/* ── Bookings Tab ── */}
             <TabsContent value="bookings" className="space-y-4">
               <div className="card-elegant p-6">
                 <h3 className="font-semibold text-foreground mb-4">Upcoming & Past Bookings</h3>
-                <div className="space-y-3">
-                  {bookings.map((booking, index) => (
-                    <motion.div
-                      key={booking.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted transition-colors"
-                    >
-                      <div>
-                        <p className="font-medium text-foreground">{booking.property.title}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
-                        </p>
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
-                        {getStatusText(booking.status)}
-                      </span>
-                    </motion.div>
-                  ))}
-                </div>
+                {bookings.length > 0 ? (
+                  <div className="space-y-3">
+                    {bookings.map((booking, index) => (
+                      <motion.div
+                        key={booking.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted transition-colors"
+                      >
+                        <div>
+                          <p className="font-medium text-foreground">{booking.property.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
+                          </p>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
+                          {getStatusText(booking.status)}
+                        </span>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">No bookings yet.</p>
+                )}
               </div>
             </TabsContent>
 
             {/* ── Saved Tab ── */}
             <TabsContent value="saved" className="space-y-4">
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {savedProperties.map((property, index) => (
-                  <motion.div
-                    key={property.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="card-elegant overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
-                  >
-                    <div className="relative w-full aspect-video overflow-hidden bg-muted">
-                      <img
-                        src={property.images[0]}
-                        alt={property.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <button className="absolute top-3 right-3 p-2 rounded-full bg-white/90 hover:bg-white transition-colors">
-                        <Heart size={20} className="fill-accent text-accent" />
-                      </button>
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-playfair font-semibold text-lg text-foreground mb-2">
-                        {property.title}
-                      </h3>
-                      <p className="text-muted-foreground text-sm flex items-center gap-2 mb-3">
-                        <MapPin size={14} />
-                        {property.location}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-muted-foreground text-sm">Price per night</p>
-                          <p className="text-2xl font-bold text-primary">${property.price}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-muted-foreground text-sm">Rating</p>
-                          <p className="text-lg font-semibold text-foreground">{property.rating}</p>
+              {savedProperties.length > 0 ? (
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {savedProperties.map((property, index) => (
+                    <motion.div
+                      key={property.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      className="card-elegant overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
+                    >
+                      <div className="relative w-full aspect-video overflow-hidden bg-muted">
+                        <img
+                          src={property.images[0]}
+                          alt={property.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <button className="absolute top-3 right-3 p-2 rounded-full bg-white/90 hover:bg-white transition-colors">
+                          <Heart size={20} className="fill-accent text-accent" />
+                        </button>
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-playfair font-semibold text-lg text-foreground mb-2">
+                          {property.title}
+                        </h3>
+                        <p className="text-muted-foreground text-sm flex items-center gap-2 mb-3">
+                          <MapPin size={14} />
+                          {property.location}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-muted-foreground text-sm">Price per night</p>
+                            <p className="text-2xl font-bold text-primary">${property.price}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-muted-foreground text-sm">Rating</p>
+                            <p className="text-lg font-semibold text-foreground">{property.rating}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-16">
+                  <Heart size={48} className="mx-auto text-muted-foreground mb-4" />
+                  <h3 className="font-playfair text-xl font-bold text-foreground mb-2">No Saved Properties</h3>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    Properties you save will appear here for easy access.
+                  </p>
+                </div>
+              )}
             </TabsContent>
 
             {/* ── Payments Tab ── */}
@@ -518,22 +530,26 @@ export default function DashboardPage() {
 
                 <div className="mt-8 pt-8 border-t border-border">
                   <h4 className="font-semibold text-foreground mb-4">Billing History</h4>
-                  <div className="space-y-3">
-                    {bookings.map((booking) => (
-                      <motion.div
-                        key={booking.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="flex items-center justify-between p-3 border border-border rounded-lg"
-                      >
-                        <div>
-                          <p className="text-foreground font-medium">{booking.property.title}</p>
-                          <p className="text-sm text-muted-foreground">{formatDate(booking.checkIn)}</p>
-                        </div>
-                        <p className="font-semibold text-foreground">${booking.totalPrice}</p>
-                      </motion.div>
-                    ))}
-                  </div>
+                  {bookings.length > 0 ? (
+                    <div className="space-y-3">
+                      {bookings.map((booking) => (
+                        <motion.div
+                          key={booking.id}
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          className="flex items-center justify-between p-3 border border-border rounded-lg"
+                        >
+                          <div>
+                            <p className="text-foreground font-medium">{booking.property.title}</p>
+                            <p className="text-sm text-muted-foreground">{formatDate(booking.checkIn)}</p>
+                          </div>
+                          <p className="font-semibold text-foreground">${booking.totalPrice}</p>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-center py-4">No billing history yet.</p>
+                  )}
                 </div>
               </div>
             </TabsContent>
