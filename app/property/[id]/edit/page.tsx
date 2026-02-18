@@ -132,6 +132,16 @@ export default function EditPropertyPage() {
     });
   };
 
+  const setAsCover = (index: number) => {
+    if (index === 0) return;
+    setImages((prev) => {
+      const next = [...prev];
+      const [item] = next.splice(index, 1);
+      next.unshift(item);
+      return next;
+    });
+  };
+
   const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(true); };
   const handleDragLeave = (e: React.DragEvent) => { e.preventDefault(); setIsDragging(false); };
   const handleDrop = (e: React.DragEvent) => {
@@ -455,7 +465,7 @@ export default function EditPropertyPage() {
             <div>
               <h2 className="font-semibold text-lg text-foreground">Images</h2>
               <p className="text-xs text-muted-foreground mt-1">
-                {images.length}/{MAX_FILES} images &mdash; drag to reorder is not yet supported, remove and re-add to change order
+                {images.length}/{MAX_FILES} images &mdash; click &ldquo;Set as Cover&rdquo; on any image to make it the main listing photo
               </p>
             </div>
 
@@ -467,7 +477,9 @@ export default function EditPropertyPage() {
                 {images.map((img, index) => (
                   <div
                     key={img.type === 'existing' ? img.url : img.preview}
-                    className="relative group aspect-video rounded-lg overflow-hidden bg-muted border border-border"
+                    className={`relative group aspect-video rounded-lg overflow-hidden bg-muted border-2 transition-colors ${
+                      index === 0 ? 'border-primary' : 'border-border'
+                    }`}
                   >
                     {img.type === 'existing' ? (
                       <Image src={img.url} alt={`Image ${index + 1}`} fill className="object-cover" />
@@ -480,17 +492,30 @@ export default function EditPropertyPage() {
                       </span>
                     )}
                     {img.type === 'new' && (
-                      <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md text-[10px] font-medium bg-accent text-accent-foreground">
+                      <span className={`absolute ${index === 0 ? 'top-2 left-[4.5rem]' : 'bottom-2 left-2'} px-2 py-0.5 rounded-md text-[10px] font-medium bg-accent text-accent-foreground`}>
                         New
                       </span>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => removeImage(index)}
-                      className="absolute top-2 right-2 p-1.5 rounded-full bg-foreground/70 text-background opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
-                    >
-                      <Trash2 size={14} />
-                    </button>
+                    {/* Hover overlay with actions */}
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+                    <div className="absolute top-2 right-2 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {index !== 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setAsCover(index)}
+                          className="px-2 py-1 rounded-md text-[11px] font-medium bg-white/90 backdrop-blur-sm text-foreground hover:bg-white transition-colors shadow-sm"
+                        >
+                          Set as Cover
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => removeImage(index)}
+                        className="p-1.5 rounded-full bg-foreground/70 text-background hover:bg-destructive transition-colors"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
