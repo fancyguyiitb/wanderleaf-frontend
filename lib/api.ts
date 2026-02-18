@@ -138,6 +138,7 @@ export function mapApiListingToProperty(api: ApiListing): Property {
     title: api.title,
     description: api.description ?? '',
     location: api.location,
+    category: api.category,
     coordinates: {
       lat: api.latitude ? Number(api.latitude) : 0,
       lng: api.longitude ? Number(api.longitude) : 0,

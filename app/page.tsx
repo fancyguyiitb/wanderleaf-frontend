@@ -45,7 +45,7 @@ export default function Home() {
   }, [setProperties]);
 
   const filteredProperties = selectedCategory
-    ? properties.slice(0, 4)
+    ? properties.filter((p) => p.category === selectedCategory)
     : properties;
 
   return (

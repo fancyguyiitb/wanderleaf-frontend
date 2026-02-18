@@ -13,6 +13,7 @@ export interface Property {
   title: string;
   description: string;
   location: string;
+  category?: string;
   coordinates: { lat: number; lng: number };
   price: number;
   rating: number;
