@@ -1,35 +1,45 @@
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import ImageGallery from '@/components/image-gallery';
 import BookingWidget from '@/components/booking-widget';
 import ReviewsSection from '@/components/reviews-section';
-import { mockProperties } from '@/lib/mock-data';
-import { Heart, MapPin, Users, Wifi, Wind, Flame, Coffee } from 'lucide-react';
-import { useState } from 'react';
+import { listingsApi } from '@/lib/api';
+import { useAuthStore, Property } from '@/lib/store';
+import { Heart, MapPin, Users, Wifi, Wind, Flame, Coffee, Loader2, Edit2, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getAvatarUrl } from '@/lib/avatar';
 
 export default function PropertyDetailPage() {
   const params = useParams();
-  const property = mockProperties.find((p) => p.id === params.id);
+  const router = useRouter();
+  const propertyId = params.id as string;
+
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  const [property, setProperty] = useState<Property | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
 
-  if (!property) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
-        <main className="flex-1 max-w-7xl mx-auto px-4 py-20 text-center">
-          <h1 className="text-2xl font-bold text-foreground">Property not found</h1>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
+  const isOwner = isAuthenticated && user && property && user.id === property.host.id;
 
-  // Get amenity icons
+  useEffect(() => {
+    if (!propertyId) return;
+    setIsLoading(true);
+    setError(null);
+    listingsApi
+      .getById(propertyId)
+      .then((p) => setProperty(p))
+      .catch((err) => setError(err.message || 'Failed to load property.'))
+      .finally(() => setIsLoading(false));
+  }, [propertyId]);
+
   const amenityIcons: Record<string, React.ReactNode> = {
     WiFi: <Wifi size={20} />,
     Heating: <Flame size={20} />,
@@ -37,11 +47,62 @@ export default function PropertyDetailPage() {
     Coffee: <Coffee size={20} />,
   };
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 size={36} className="animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading property...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error || !property) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <main className="flex-1 max-w-7xl mx-auto px-4 py-20 text-center">
+          <h1 className="text-2xl font-bold text-foreground mb-4">
+            {error || 'Property not found'}
+          </h1>
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-2 text-primary hover:underline"
+          >
+            <ArrowLeft size={16} />
+            Go back
+          </button>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
+        {/* Back link */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="mb-6"
+        >
+          <button
+            onClick={() => router.back()}
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft size={16} />
+            Back
+          </button>
+        </motion.div>
+
         {/* Header with Title and Actions */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -58,23 +119,36 @@ export default function PropertyDetailPage() {
                   <MapPin size={20} />
                   <span>{property.location}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-accent font-semibold text-lg">{property.rating}</span>
-                  <span>({property.reviews} reviews)</span>
-                </div>
+                {property.rating > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-accent font-semibold text-lg">{property.rating}</span>
+                    <span>({property.reviews} reviews)</span>
+                  </div>
+                )}
               </div>
             </div>
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => setIsFavorite(!isFavorite)}
-              className="p-3 rounded-full bg-secondary text-foreground hover:bg-accent/10 transition-colors"
-            >
-              <Heart
-                size={24}
-                className={isFavorite ? 'fill-accent text-accent' : ''}
-              />
-            </motion.button>
+            <div className="flex items-center gap-2">
+              {isOwner && (
+                <Link
+                  href={`/property/${property.id}/edit`}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+                >
+                  <Edit2 size={18} />
+                  <span className="hidden sm:inline">Edit Property</span>
+                </Link>
+              )}
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setIsFavorite(!isFavorite)}
+                className="p-3 rounded-full bg-secondary text-foreground hover:bg-accent/10 transition-colors"
+              >
+                <Heart
+                  size={24}
+                  className={isFavorite ? 'fill-accent text-accent' : ''}
+                />
+              </motion.button>
+            </div>
           </div>
         </motion.div>
 
@@ -110,7 +184,7 @@ export default function PropertyDetailPage() {
                   { label: 'Bedrooms', value: property.bedrooms },
                   { label: 'Bathrooms', value: property.bathrooms },
                   { label: 'Guests', value: property.guests },
-                  { label: 'Rating', value: property.rating },
+                  { label: 'Rating', value: property.rating > 0 ? property.rating : 'New' },
                 ].map((stat, index) => (
                   <motion.div
                     key={stat.label}
@@ -127,32 +201,34 @@ export default function PropertyDetailPage() {
             </motion.section>
 
             {/* Amenities Section */}
-            <motion.section
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.1 }}
-              className="mb-12 pb-12 border-b border-border"
-            >
-              <h2 className="font-playfair text-2xl font-bold text-foreground mb-6">Amenities</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                {property.amenities.map((amenity, index) => (
-                  <motion.div
-                    key={amenity}
-                    initial={{ opacity: 0, x: -20 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    viewport={{ once: true }}
-                    className="flex items-center gap-3 p-4 rounded-lg bg-secondary border border-border"
-                  >
-                    <div className="text-primary">
-                      {amenityIcons[amenity] || <Wifi size={20} />}
-                    </div>
-                    <span className="font-medium text-foreground">{amenity}</span>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.section>
+            {property.amenities.length > 0 && (
+              <motion.section
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: 0.1 }}
+                className="mb-12 pb-12 border-b border-border"
+              >
+                <h2 className="font-playfair text-2xl font-bold text-foreground mb-6">Amenities</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {property.amenities.map((amenity, index) => (
+                    <motion.div
+                      key={amenity}
+                      initial={{ opacity: 0, x: -20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      viewport={{ once: true }}
+                      className="flex items-center gap-3 p-4 rounded-lg bg-secondary border border-border"
+                    >
+                      <div className="text-primary">
+                        {amenityIcons[amenity] || <Wifi size={20} />}
+                      </div>
+                      <span className="font-medium text-foreground">{amenity}</span>
+                    </motion.div>
+                  ))}
+                </div>
+              </motion.section>
+            )}
 
             {/* Host Section */}
             <motion.section
@@ -178,19 +254,21 @@ export default function PropertyDetailPage() {
                       </span>
                     )}
                   </h3>
-                  <div className="flex items-center gap-1 mb-3">
-                    {[...Array(5)].map((_, i) => (
-                      <span
-                        key={i}
-                        className={i < Math.floor(property.host.rating) ? 'text-accent' : 'text-muted'}
-                      >
-                        ★
-                      </span>
-                    ))}
-                    <span className="text-muted-foreground ml-2">{property.host.rating} rating</span>
-                  </div>
+                  {property.host.rating > 0 && (
+                    <div className="flex items-center gap-1 mb-3">
+                      {[...Array(5)].map((_, i) => (
+                        <span
+                          key={i}
+                          className={i < Math.floor(property.host.rating) ? 'text-accent' : 'text-muted'}
+                        >
+                          ★
+                        </span>
+                      ))}
+                      <span className="text-muted-foreground ml-2">{property.host.rating} rating</span>
+                    </div>
+                  )}
                   <p className="text-foreground text-sm leading-relaxed">
-                    Experienced host with a passion for providing exceptional stays. Known for responsive communication and beautiful properties. Join our community of satisfied guests!
+                    Experienced host with a passion for providing exceptional stays. Known for responsive communication and beautiful properties.
                   </p>
                   <button className="mt-4 px-6 py-2 border border-primary text-primary rounded-lg font-medium hover:bg-primary/10 transition-colors">
                     Contact Host

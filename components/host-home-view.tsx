@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   PlusCircle,
@@ -326,9 +327,13 @@ function HostPropertyCard({
   isDeleting?: boolean;
 }) {
   const [showActions, setShowActions] = useState(false);
+  const router = useRouter();
 
   return (
-    <div className="card-elegant overflow-hidden h-full flex flex-col">
+    <div
+      className="card-elegant overflow-hidden h-full flex flex-col cursor-pointer"
+      onClick={() => router.push(`/property/${property.id}`)}
+    >
       {/* Image */}
       <div className="relative w-full aspect-video overflow-hidden bg-muted group">
         <Image
@@ -352,7 +357,7 @@ function HostPropertyCard({
         </div>
 
         {/* Actions Menu */}
-        <div className="absolute top-3 right-3">
+        <div className="absolute top-3 right-3" onClick={(e) => e.stopPropagation()}>
           <div className="relative">
             <button
               onClick={() => setShowActions(!showActions)}
@@ -369,11 +374,17 @@ function HostPropertyCard({
                   animate={{ opacity: 1, scale: 1 }}
                   className="absolute right-0 top-full mt-2 bg-card border border-border rounded-lg shadow-lg py-2 min-w-[140px] z-20"
                 >
-                  <button className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2 text-left">
+                  <button
+                    onClick={() => { setShowActions(false); router.push(`/property/${property.id}`); }}
+                    className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2 text-left"
+                  >
                     <Eye size={14} />
                     View
                   </button>
-                  <button className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2 text-left">
+                  <button
+                    onClick={() => { setShowActions(false); router.push(`/property/${property.id}/edit`); }}
+                    className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2 text-left"
+                  >
                     <Edit2 size={14} />
                     Edit
                   </button>
