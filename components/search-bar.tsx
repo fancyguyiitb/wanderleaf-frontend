@@ -40,6 +40,7 @@ interface SearchBarProps {
 export default function SearchBar({ onSearch }: SearchBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [location, setLocation] = useState('');
+  const [locationSearchName, setLocationSearchName] = useState('');
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [guests, setGuests] = useState('');
@@ -101,6 +102,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
 
   const handleLocationChange = (value: string) => {
     setLocation(value);
+    setLocationSearchName('');
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => fetchSuggestions(value), 300);
@@ -108,6 +110,7 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
 
   const selectSuggestion = (suggestion: LocationSuggestion) => {
     setLocation(suggestion.display);
+    setLocationSearchName(suggestion.name);
     setSuggestions([]);
     setShowSuggestions(false);
     setHighlightedIndex(-1);
@@ -179,7 +182,12 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
   const handleSearch = () => {
     setShowSuggestions(false);
     setIsExpanded(false);
-    onSearch?.({ location, checkIn, checkOut, guests });
+    onSearch?.({
+      location: locationSearchName || location,
+      checkIn,
+      checkOut,
+      guests,
+    });
   };
 
   return (
