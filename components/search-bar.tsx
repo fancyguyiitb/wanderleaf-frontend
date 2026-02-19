@@ -33,7 +33,11 @@ function formatPhotonFeature(feature: any): LocationSuggestion {
   };
 }
 
-export default function SearchBar() {
+interface SearchBarProps {
+  onSearch?: (params: { location: string; checkIn: string; checkOut: string; guests: string }) => void;
+}
+
+export default function SearchBar({ onSearch }: SearchBarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [location, setLocation] = useState('');
   const [checkIn, setCheckIn] = useState('');
@@ -173,7 +177,9 @@ export default function SearchBar() {
   }, []);
 
   const handleSearch = () => {
-    console.log({ location, checkIn, checkOut, guests });
+    setShowSuggestions(false);
+    setIsExpanded(false);
+    onSearch?.({ location, checkIn, checkOut, guests });
   };
 
   return (

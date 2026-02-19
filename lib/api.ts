@@ -291,6 +291,18 @@ export const listingsApi = {
     return data.results.map(mapApiListingToProperty);
   },
 
+  async search(params: { query?: string; guests?: number }): Promise<Property[]> {
+    const searchParams = new URLSearchParams();
+    if (params.query) searchParams.set('search', params.query);
+    if (params.guests) searchParams.set('guests', String(params.guests));
+    const qs = searchParams.toString();
+    const url = `/api/v1/listings/${qs ? `?${qs}` : ''}`;
+    const data = await apiFetch<ApiPaginatedResponse<ApiListing>>(url, {
+      skipAuthHeader: true,
+    });
+    return data.results.map(mapApiListingToProperty);
+  },
+
   async getById(id: string): Promise<Property> {
     const data = await apiFetch<ApiListing>(`/api/v1/listings/${id}/`, {
       skipAuthHeader: true,

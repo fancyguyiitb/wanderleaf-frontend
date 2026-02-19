@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import HeroSection from '@/components/hero-section';
@@ -10,39 +10,59 @@ import HostHomeView from '@/components/host-home-view';
 import { usePropertyStore, useAuthStore } from '@/lib/store';
 import { listingsApi } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
+import { X } from 'lucide-react';
 
 export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeSearch, setActiveSearch] = useState<{ location: string; guests: string } | null>(null);
   const { properties, setProperties } = usePropertyStore();
   const { userMode } = useAuthStore();
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const fetchListings = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await listingsApi.getAll();
-        if (!cancelled) {
-          setProperties(data);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load listings');
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchListings();
-    return () => { cancelled = true; };
+  const fetchAll = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await listingsApi.getAll();
+      setProperties(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load listings');
+    } finally {
+      setLoading(false);
+    }
   }, [setProperties]);
+
+  useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  const handleSearch = useCallback(async (params: { location: string; checkIn: string; checkOut: string; guests: string }) => {
+    if (!params.location.trim() && !params.guests.trim()) return;
+
+    setSelectedCategory(null);
+    setActiveSearch({ location: params.location, guests: params.guests });
+    setLoading(true);
+    setError(null);
+
+    try {
+      const data = await listingsApi.search({
+        query: params.location.trim() || undefined,
+        guests: params.guests ? Number(params.guests) : undefined,
+      });
+      setProperties(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Search failed');
+    } finally {
+      setLoading(false);
+    }
+  }, [setProperties]);
+
+  const clearSearch = useCallback(() => {
+    setActiveSearch(null);
+    setSelectedCategory(null);
+    fetchAll();
+  }, [fetchAll]);
 
   const filteredProperties = selectedCategory
     ? properties.filter((p) => p.category === selectedCategory)
@@ -74,7 +94,7 @@ export default function Home() {
             className="flex-1 flex flex-col"
           >
             {/* Hero Section */}
-            <HeroSection />
+            <HeroSection onSearch={handleSearch} />
 
             {/* Main Content */}
             <main className="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-16">
@@ -96,12 +116,31 @@ export default function Home() {
                   transition={{ delay: 0.4 }}
                   className="mb-8"
                 >
-                  <h2 className="font-playfair text-3xl md:text-4xl font-bold text-foreground">
-                    {selectedCategory ? 'Featured Stays' : 'Recommended Properties'}
-                  </h2>
-                  <p className="text-muted-foreground mt-2">
-                    {filteredProperties.length} unique places to stay
-                  </p>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h2 className="font-playfair text-3xl md:text-4xl font-bold text-foreground">
+                        {activeSearch
+                          ? `Results for "${activeSearch.location || 'all locations'}"${activeSearch.guests ? ` (${activeSearch.guests}+ guests)` : ''}`
+                          : selectedCategory
+                          ? 'Featured Stays'
+                          : 'Recommended Properties'}
+                      </h2>
+                      <p className="text-muted-foreground mt-2">
+                        {loading
+                          ? 'Searching...'
+                          : `${filteredProperties.length} unique ${filteredProperties.length === 1 ? 'place' : 'places'} to stay`}
+                      </p>
+                    </div>
+                    {activeSearch && (
+                      <button
+                        onClick={clearSearch}
+                        className="flex items-center gap-2 px-4 py-2 rounded-full border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors flex-shrink-0"
+                      >
+                        <X size={16} />
+                        Clear Search
+                      </button>
+                    )}
+                  </div>
                 </motion.div>
 
                 {loading ? (

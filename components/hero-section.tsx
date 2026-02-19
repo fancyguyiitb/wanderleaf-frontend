@@ -3,7 +3,11 @@
 import { motion } from 'framer-motion';
 import SearchBar from './search-bar';
 
-export default function HeroSection() {
+interface HeroSectionProps {
+  onSearch?: (params: { location: string; checkIn: string; checkOut: string; guests: string }) => void;
+}
+
+export default function HeroSection({ onSearch }: HeroSectionProps) {
   return (
     <section className="relative w-full overflow-hidden">
       {/* Background */}
@@ -37,7 +41,7 @@ export default function HeroSection() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
-          <SearchBar />
+          <SearchBar onSearch={onSearch} />
         </motion.div>
       </div>
     </section>
