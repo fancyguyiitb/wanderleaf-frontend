@@ -26,7 +26,7 @@ export default function Navbar() {
               <span className="text-primary-foreground font-playfair font-bold text-lg">S</span>
             </div>
             <span className="font-playfair font-bold text-xl text-foreground hidden sm:block">
-              StayNature
+              WanderLeaf
             </span>
           </Link>
 

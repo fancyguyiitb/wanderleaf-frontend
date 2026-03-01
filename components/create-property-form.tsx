@@ -283,7 +283,7 @@ export default function CreatePropertyForm({
               Create New Listing
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Fill in the details to list your property on StayNature
+              Fill in the details to list your property on WanderLeaf
             </DialogDescription>
           </DialogHeader>
 

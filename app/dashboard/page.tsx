@@ -109,7 +109,7 @@ export default function DashboardPage() {
     name: 'Guest User',
     email: 'guest@example.com',
     avatar: null,
-    joinDate: 'Joined StayNature',
+    joinDate: 'Joined WanderLeaf',
     verified: false,
   };
 

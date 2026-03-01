@@ -352,7 +352,7 @@ export default function ProfilePage() {
                     Edit profile
                   </CardTitle>
                   <CardDescription className="text-muted-foreground">
-                    Update the details that appear on your StayNature account.
+                    Update the details that appear on your WanderLeaf account.
                   </CardDescription>
                 </CardHeader>
 
@@ -507,14 +507,14 @@ export default function ProfilePage() {
 
                 <Card className="card-elegant relative border-none bg-gradient-to-br from-card to-secondary/40 p-8">
                   <p className="text-sm font-medium tracking-[0.2em] uppercase text-muted-foreground mb-4">
-                    Your StayNature identity
+                    Your WanderLeaf identity
                   </p>
                   <h2 className="font-playfair text-4xl font-bold text-foreground mb-4">
                     Make your profile feel like you.
                   </h2>
                   <p className="text-muted-foreground text-sm md:text-base max-w-md mb-4">
                     Guests and hosts will see your name and photo when you book, host, or leave reviews. Choose
-                    details that you&apos;re comfortable sharing and that reflect how you want to show up in the StayNature community.
+                    details that you&apos;re comfortable sharing and that reflect how you want to show up in the WanderLeaf community.
                   </p>
                   <p className="text-xs text-muted-foreground">
                     You can update these details at any time. For security changes like password or login methods, use the account settings in the auth pages.

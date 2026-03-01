@@ -54,7 +54,7 @@ export default function Footer() {
           {/* Left: Copyright & Language */}
           <div className="flex flex-col sm:flex-row items-center gap-6">
             <p className="text-muted-foreground text-sm">
-              © 2024 StayNature, Inc. All rights reserved
+              © 2024 WanderLeaf, Inc. All rights reserved
             </p>
             <div className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border hover:bg-muted transition-colors cursor-pointer">
               <Globe size={16} />

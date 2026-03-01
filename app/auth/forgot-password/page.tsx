@@ -110,7 +110,7 @@ export default function ForgotPasswordPage() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
-                      Make sure this is the email address associated with your StayNature account.
+                      Make sure this is the email address associated with your WanderLeaf account.
                     </p>
                   </div>
 
@@ -150,7 +150,7 @@ export default function ForgotPasswordPage() {
           >
             <p className="text-sm text-muted-foreground">
               Need help?{' '}
-              <Link href="mailto:support@staynature.com" className="text-primary hover:underline font-semibold">
+              <Link href="mailto:support@wanderleaf.com" className="text-primary hover:underline font-semibold">
                 Contact our support team
               </Link>
             </p>

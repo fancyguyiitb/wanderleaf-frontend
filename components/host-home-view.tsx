@@ -254,7 +254,7 @@ export default function HostHomeView() {
               Hosting Tips
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Make the most out of your hosting experience on StayNature
+              Make the most out of your hosting experience on WanderLeaf
             </p>
           </div>
 

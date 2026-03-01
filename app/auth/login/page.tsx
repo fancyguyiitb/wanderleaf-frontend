@@ -188,7 +188,7 @@ export default function LoginPage() {
               <Card className="card-elegant border-none rounded-2xl">
                 <CardHeader className="space-y-2 text-center">
                   <CardTitle className="font-playfair text-3xl text-foreground">
-                    Sign in to StayNature
+                    Sign in to WanderLeaf
                   </CardTitle>
                   <CardDescription className="text-muted-foreground">
                     Access your bookings, favorites, and personalized recommendations.
@@ -355,7 +355,7 @@ export default function LoginPage() {
                   </Button>
 
                   <p className="text-center text-sm text-muted-foreground">
-                    New to StayNature?{' '}
+                    New to WanderLeaf?{' '}
                     <Link href="/auth/signup" className="font-semibold text-primary hover:underline">
                       Create an account
                     </Link>
