@@ -8,9 +8,9 @@ const _geist = Geist({ subsets: ['latin'] })
 const _geistMono = Geist_Mono({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'StayNature - Find Your Perfect Getaway',
+  title: 'WanderLeaf - Find Your Perfect Getaway',
   description:
-    'Discover unique, nature-inspired accommodations around the world. Book your dream stay with StayNature.',
+    'Discover unique, nature-inspired accommodations around the world. Book your dream stay with WanderLeaf.',
   generator: 'v0.app',
 }
 

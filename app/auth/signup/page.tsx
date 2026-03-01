@@ -166,7 +166,7 @@ export default function SignupPage() {
               <Card className="card-elegant border-none rounded-2xl">
                 <CardHeader className="space-y-2 text-center">
                   <CardTitle className="font-playfair text-3xl text-foreground">
-                    Create your StayNature account
+                    Create your WanderLeaf account
                   </CardTitle>
                   <CardDescription className="text-muted-foreground">
                     Join a community of travelers who prefer cabins, treehouses, and nature-first stays.
@@ -396,7 +396,7 @@ export default function SignupPage() {
                     Build your wishlist, follow trusted hosts, and plan slow getaways that feel like a deep breath.
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    We carefully curate each StayNature listing to meet our standards for comfort, authenticity, and
+                    We carefully curate each WanderLeaf listing to meet our standards for comfort, authenticity, and
                     connection to the outdoors.
                   </p>
                 </Card>

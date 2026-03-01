@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { Property } from '@/lib/store';
 import { listingsApi, CreateListingPayload } from '@/lib/api';
-import { amenitiesList, categories } from '@/lib/mock-data';
+import { amenitiesList, categories } from '@/lib/constants';
 
 interface CreatePropertyFormProps {
   open: boolean;
@@ -283,7 +283,7 @@ export default function CreatePropertyForm({
               Create New Listing
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
-              Fill in the details to list your property on StayNature
+              Fill in the details to list your property on WanderLeaf
             </DialogDescription>
           </DialogHeader>
 

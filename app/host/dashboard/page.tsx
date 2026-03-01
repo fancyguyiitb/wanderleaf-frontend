@@ -1,55 +1,54 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, Users, DollarSign, Calendar, PlusCircle, Edit2, Trash2, Eye, EyeOff } from 'lucide-react';
+import { BarChart3, Users, DollarSign, Calendar, PlusCircle, Edit2, Trash2, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { mockProperties } from '@/lib/mock-data';
+import { listingsApi } from '@/lib/api';
+import { Property } from '@/lib/store';
 
 export default function HostDashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
-  const [hostProperties, setHostProperties] = useState(mockProperties.slice(0, 3));
+  const [hostProperties, setHostProperties] = useState<Property[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock analytics data
+  const fetchProperties = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const listings = await listingsApi.getMyListings();
+      setHostProperties(listings);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load properties');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProperties();
+  }, [fetchProperties]);
+
   const analytics = {
-    totalEarnings: 15420,
-    totalBookings: 24,
-    totalGuests: 68,
-    occupancyRate: 78,
+    totalEarnings: 0,
+    totalBookings: 0,
+    totalGuests: 0,
+    occupancyRate: 0,
   };
 
-  // Mock upcoming bookings
-  const upcomingBookings = [
-    {
-      id: 'ub1',
-      guestName: 'John Smith',
-      property: hostProperties[0].title,
-      checkIn: '2024-03-15',
-      checkOut: '2024-03-20',
-      status: 'confirmed',
-    },
-    {
-      id: 'ub2',
-      guestName: 'Emily Davis',
-      property: hostProperties[1].title,
-      checkIn: '2024-03-18',
-      checkOut: '2024-03-22',
-      status: 'confirmed',
-    },
-    {
-      id: 'ub3',
-      guestName: 'Michael Johnson',
-      property: hostProperties[2].title,
-      checkIn: '2024-04-01',
-      checkOut: '2024-04-05',
-      status: 'pending',
-    },
-  ];
+  const upcomingBookings: {
+    id: string;
+    guestName: string;
+    property: string;
+    checkIn: string;
+    checkOut: string;
+    status: string;
+  }[] = [];
 
   const togglePropertyVisibility = (propertyId: string) => {
-    // Mock toggle function
     console.log('Toggling visibility for', propertyId);
   };
 
@@ -167,34 +166,38 @@ export default function HostDashboardPage() {
                 className="card-elegant p-6 rounded-xl"
               >
                 <h2 className="font-playfair text-2xl font-bold text-foreground mb-6">Upcoming Bookings</h2>
-                <div className="space-y-4">
-                  {upcomingBookings.map((booking, index) => (
-                    <motion.div
-                      key={booking.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted transition-colors"
-                    >
-                      <div>
-                        <p className="font-semibold text-foreground">{booking.guestName}</p>
-                        <p className="text-sm text-muted-foreground">{booking.property}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          booking.status === 'confirmed'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {booking.status === 'confirmed' ? 'Confirmed' : 'Pending'}
-                        </span>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
+                {upcomingBookings.length > 0 ? (
+                  <div className="space-y-4">
+                    {upcomingBookings.map((booking, index) => (
+                      <motion.div
+                        key={booking.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted transition-colors"
+                      >
+                        <div>
+                          <p className="font-semibold text-foreground">{booking.guestName}</p>
+                          <p className="text-sm text-muted-foreground">{booking.property}</p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                            booking.status === 'confirmed'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {booking.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+                          </span>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">No upcoming bookings yet.</p>
+                )}
               </motion.div>
 
               {/* Recent Activity */}
@@ -232,6 +235,31 @@ export default function HostDashboardPage() {
 
             {/* Properties Tab */}
             <TabsContent value="properties" className="space-y-6">
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-4">
+                  <Loader2 size={32} className="animate-spin text-primary" />
+                  <p className="text-muted-foreground">Loading your properties...</p>
+                </div>
+              ) : error ? (
+                <div className="text-center py-16">
+                  <h3 className="text-xl font-semibold text-foreground mb-2">Something went wrong</h3>
+                  <p className="text-muted-foreground mb-4">{error}</p>
+                  <button
+                    onClick={fetchProperties}
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              ) : hostProperties.length === 0 ? (
+                <div className="text-center py-16">
+                  <PlusCircle size={48} className="mx-auto text-muted-foreground mb-4" />
+                  <h3 className="font-playfair text-xl font-bold text-foreground mb-2">No Properties Yet</h3>
+                  <p className="text-muted-foreground max-w-md mx-auto">
+                    Start hosting by creating your first property listing.
+                  </p>
+                </div>
+              ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {hostProperties.map((property, index) => (
                   <motion.div
@@ -297,54 +325,59 @@ export default function HostDashboardPage() {
                   </motion.div>
                 ))}
               </div>
+              )}
             </TabsContent>
 
             {/* Bookings Tab */}
             <TabsContent value="bookings" className="space-y-4">
               <div className="card-elegant p-6 rounded-xl">
                 <h2 className="font-playfair text-2xl font-bold text-foreground mb-6">All Bookings</h2>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="text-left py-3 px-4 font-semibold text-foreground">Guest</th>
-                        <th className="text-left py-3 px-4 font-semibold text-foreground">Property</th>
-                        <th className="text-left py-3 px-4 font-semibold text-foreground">Dates</th>
-                        <th className="text-left py-3 px-4 font-semibold text-foreground">Status</th>
-                        <th className="text-left py-3 px-4 font-semibold text-foreground">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {upcomingBookings.map((booking, index) => (
-                        <motion.tr
-                          key={booking.id}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ delay: index * 0.05 }}
-                          className="border-b border-border hover:bg-muted transition-colors"
-                        >
-                          <td className="py-3 px-4 text-foreground">{booking.guestName}</td>
-                          <td className="py-3 px-4 text-foreground">{booking.property}</td>
-                          <td className="py-3 px-4 text-muted-foreground text-sm">
-                            {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
-                          </td>
-                          <td className="py-3 px-4">
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                              booking.status === 'confirmed'
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {booking.status === 'confirmed' ? 'Confirmed' : 'Pending'}
-                            </span>
-                          </td>
-                          <td className="py-3 px-4">
-                            <button className="text-primary hover:underline font-medium">View</button>
-                          </td>
-                        </motion.tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                {upcomingBookings.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="border-b border-border">
+                          <th className="text-left py-3 px-4 font-semibold text-foreground">Guest</th>
+                          <th className="text-left py-3 px-4 font-semibold text-foreground">Property</th>
+                          <th className="text-left py-3 px-4 font-semibold text-foreground">Dates</th>
+                          <th className="text-left py-3 px-4 font-semibold text-foreground">Status</th>
+                          <th className="text-left py-3 px-4 font-semibold text-foreground">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {upcomingBookings.map((booking, index) => (
+                          <motion.tr
+                            key={booking.id}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: index * 0.05 }}
+                            className="border-b border-border hover:bg-muted transition-colors"
+                          >
+                            <td className="py-3 px-4 text-foreground">{booking.guestName}</td>
+                            <td className="py-3 px-4 text-foreground">{booking.property}</td>
+                            <td className="py-3 px-4 text-muted-foreground text-sm">
+                              {new Date(booking.checkIn).toLocaleDateString()} - {new Date(booking.checkOut).toLocaleDateString()}
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                booking.status === 'confirmed'
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {booking.status === 'confirmed' ? 'Confirmed' : 'Pending'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <button className="text-primary hover:underline font-medium">View</button>
+                            </td>
+                          </motion.tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-center py-8">No bookings yet.</p>
+                )}
               </div>
             </TabsContent>
 

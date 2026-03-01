@@ -138,6 +138,7 @@ export function mapApiListingToProperty(api: ApiListing): Property {
     title: api.title,
     description: api.description ?? '',
     location: api.location,
+    category: api.category,
     coordinates: {
       lat: api.latitude ? Number(api.latitude) : 0,
       lng: api.longitude ? Number(api.longitude) : 0,
@@ -285,6 +286,18 @@ export const listingsApi = {
 
   async getAll(): Promise<Property[]> {
     const data = await apiFetch<ApiPaginatedResponse<ApiListing>>('/api/v1/listings/', {
+      skipAuthHeader: true,
+    });
+    return data.results.map(mapApiListingToProperty);
+  },
+
+  async search(params: { query?: string; guests?: number }): Promise<Property[]> {
+    const searchParams = new URLSearchParams();
+    if (params.query) searchParams.set('search', params.query);
+    if (params.guests) searchParams.set('guests', String(params.guests));
+    const qs = searchParams.toString();
+    const url = `/api/v1/listings/${qs ? `?${qs}` : ''}`;
+    const data = await apiFetch<ApiPaginatedResponse<ApiListing>>(url, {
       skipAuthHeader: true,
     });
     return data.results.map(mapApiListingToProperty);

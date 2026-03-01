@@ -1,27 +1,59 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
-import { CreditCard, Lock, CheckCircle, MapPin, Calendar, Users } from 'lucide-react';
+import { CreditCard, Lock, CheckCircle, MapPin, Calendar, Users, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { mockProperties } from '@/lib/mock-data';
+import { listingsApi } from '@/lib/api';
+import { Property } from '@/lib/store';
 
 export default function CheckoutPage() {
+  const searchParams = useSearchParams();
+  const propertyId = searchParams.get('propertyId');
+
   const [step, setStep] = useState<'payment' | 'confirmation'>('payment');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [property, setProperty] = useState<Property | null>(null);
+  const [loadingProperty, setLoadingProperty] = useState(true);
 
-  // Mock booking data
+  useEffect(() => {
+    if (!propertyId) {
+      setLoadingProperty(false);
+      return;
+    }
+    setLoadingProperty(true);
+    listingsApi
+      .getById(propertyId)
+      .then((p) => setProperty(p))
+      .catch(() => setProperty(null))
+      .finally(() => setLoadingProperty(false));
+  }, [propertyId]);
+
+  const checkIn = searchParams.get('checkIn') || '';
+  const checkOut = searchParams.get('checkOut') || '';
+  const guestCount = Number(searchParams.get('guests')) || 2;
+
+  const nights =
+    checkIn && checkOut
+      ? Math.max(1, Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)))
+      : 1;
+  const pricePerNight = property?.price ?? 0;
+  const subtotal = pricePerNight * nights;
+  const serviceFee = Math.round(subtotal * 0.15);
+  const total = subtotal + serviceFee;
+
   const booking = {
-    property: mockProperties[0],
-    checkIn: '2024-03-15',
-    checkOut: '2024-03-20',
-    guests: 2,
-    nights: 5,
-    pricePerNight: 185,
-    subtotal: 925,
-    serviceFee: 139,
-    total: 1064,
+    property,
+    checkIn,
+    checkOut,
+    guests: guestCount,
+    nights,
+    pricePerNight,
+    subtotal,
+    serviceFee,
+    total,
   };
 
   const [cardData, setCardData] = useState({
@@ -61,6 +93,35 @@ export default function CheckoutPage() {
     setIsProcessing(false);
     setStep('confirmation');
   };
+
+  if (loadingProperty) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 size={36} className="animate-spin text-primary" />
+            <p className="text-muted-foreground">Loading booking details...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!property) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-20 text-center">
+          <h1 className="text-2xl font-bold text-foreground mb-4">Booking Not Found</h1>
+          <p className="text-muted-foreground mb-6">The property for this booking could not be loaded.</p>
+          <a href="/" className="text-primary hover:underline font-medium">Back to Home</a>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -244,19 +305,19 @@ export default function CheckoutPage() {
                 >
                   {/* Property Image */}
                   <img
-                    src={booking.property.images[0]}
-                    alt={booking.property.title}
+                    src={property.images[0]}
+                    alt={property.title}
                     className="w-full aspect-video object-cover rounded-lg"
                   />
 
                   {/* Property Details */}
                   <div>
                     <h3 className="font-playfair font-bold text-lg text-foreground mb-2">
-                      {booking.property.title}
+                      {property.title}
                     </h3>
                     <p className="text-muted-foreground flex items-center gap-2 text-sm">
                       <MapPin size={16} />
-                      {booking.property.location}
+                      {property.location}
                     </p>
                   </div>
 
@@ -344,7 +405,7 @@ export default function CheckoutPage() {
               <div className="border-t border-b border-border py-6 space-y-4">
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Property</p>
-                  <p className="font-semibold text-foreground">{booking.property.title}</p>
+                  <p className="font-semibold text-foreground">{property.title}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Dates</p>
