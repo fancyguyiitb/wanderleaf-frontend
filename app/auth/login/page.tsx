@@ -5,7 +5,7 @@ import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import { Mail, Lock, Eye, EyeOff, Phone, Chrome } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
@@ -55,10 +55,19 @@ const loginSchema = z
 
 type LoginValues = z.infer<typeof loginSchema>;
 
+function getSafeRedirect(redirect: string | null): string {
+  if (!redirect || typeof redirect !== 'string') return '/dashboard';
+  const decoded = decodeURIComponent(redirect);
+  if (!decoded.startsWith('/') || decoded.startsWith('/auth')) return '/dashboard';
+  return decoded;
+}
+
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const setAuth = useAuthStore((state) => state.setAuth);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = getSafeRedirect(searchParams.get('redirect'));
 
   const form = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
@@ -134,7 +143,7 @@ export default function LoginPage() {
         window.localStorage.removeItem('wanderleaf_auth');
       }
 
-      router.push('/dashboard');
+      router.push(redirectTo);
     } catch (error: any) {
       console.error('[Login] Login failed', { error });
       const message = error?.message ?? 'Unable to sign you in. Please try again.';
@@ -356,7 +365,10 @@ export default function LoginPage() {
 
                   <p className="text-center text-sm text-muted-foreground">
                     New to WanderLeaf?{' '}
-                    <Link href="/auth/signup" className="font-semibold text-primary hover:underline">
+                    <Link
+                      href={searchParams.get('redirect') ? `/auth/signup?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : '/auth/signup'}
+                      className="font-semibold text-primary hover:underline"
+                    >
                       Create an account
                     </Link>
                   </p>

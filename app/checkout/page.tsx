@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
+import RequireAuth from '@/components/require-auth';
 import { CreditCard, Lock, CheckCircle, MapPin, Calendar, Users, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { listingsApi } from '@/lib/api';
@@ -94,36 +95,28 @@ export default function CheckoutPage() {
     setStep('confirmation');
   };
 
-  if (loadingProperty) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <Loader2 size={36} className="animate-spin text-primary" />
-            <p className="text-muted-foreground">Loading booking details...</p>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (!property) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
-        <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-20 text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-4">Booking Not Found</h1>
-          <p className="text-muted-foreground mb-6">The property for this booking could not be loaded.</p>
-          <a href="/" className="text-primary hover:underline font-medium">Back to Home</a>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  return (
+  const pageContent = loadingProperty ? (
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar />
+      <main className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 size={36} className="animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading booking details...</p>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  ) : !property ? (
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar />
+      <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-20 text-center">
+        <h1 className="text-2xl font-bold text-foreground mb-4">Booking Not Found</h1>
+        <p className="text-muted-foreground mb-6">The property for this booking could not be loaded.</p>
+        <a href="/" className="text-primary hover:underline font-medium">Back to Home</a>
+      </main>
+      <Footer />
+    </div>
+  ) : (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
@@ -446,4 +439,6 @@ export default function CheckoutPage() {
       <Footer />
     </div>
   );
+
+  return <RequireAuth>{pageContent}</RequireAuth>;
 }

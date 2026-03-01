@@ -49,10 +49,12 @@ export interface Booking {
 interface AuthStore {
   user: User | null;
   isAuthenticated: boolean;
+  authReady: boolean;
   userMode: 'guest' | 'host';
   accessToken: string | null;
   refreshToken: string | null;
   setAuth: (payload: { user: User; accessToken: string; refreshToken: string | null }) => void;
+  setAuthReady: (ready: boolean) => void;
   setUserMode: (mode: 'guest' | 'host') => void;
   logout: () => void;
 }
@@ -83,6 +85,7 @@ interface BookingStore {
 export const useAuthStore = create<AuthStore>((set) => ({
   user: null,
   isAuthenticated: false,
+  authReady: false,
   userMode: 'guest',
   accessToken: null,
   refreshToken: null,
@@ -93,6 +96,7 @@ export const useAuthStore = create<AuthStore>((set) => ({
       refreshToken,
       isAuthenticated: true,
     }),
+  setAuthReady: (ready) => set({ authReady: ready }),
   setUserMode: (mode) => set({ userMode: mode }),
   logout: () =>
     set({

@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore, useHostListingStore, Property } from '@/lib/store';
+import RequireAuth from '@/components/require-auth';
 import { listingsApi } from '@/lib/api';
 import { getAvatarUrl } from '@/lib/avatar';
 
@@ -143,6 +144,7 @@ export default function DashboardPage() {
   };
 
   return (
+    <RequireAuth>
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
@@ -575,6 +577,7 @@ export default function DashboardPage() {
 
       <Footer />
     </div>
+    </RequireAuth>
   );
 }
 
