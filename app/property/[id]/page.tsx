@@ -8,8 +8,8 @@ import Footer from '@/components/footer';
 import ImageGallery from '@/components/image-gallery';
 import BookingWidget from '@/components/booking-widget';
 import ReviewsSection from '@/components/reviews-section';
-import { listingsApi } from '@/lib/api';
-import { useAuthStore, Property } from '@/lib/store';
+import { listingsApi, wishlistApi } from '@/lib/api';
+import { useAuthStore, usePropertyStore, Property } from '@/lib/store';
 import { Heart, MapPin, Users, Wifi, Wind, Flame, Coffee, Loader2, Edit2, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getAvatarUrl } from '@/lib/avatar';
@@ -21,11 +21,14 @@ export default function PropertyDetailPage() {
 
   const user = useAuthStore((s) => s.user);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const { favorites, addFavorite, removeFavorite } = usePropertyStore();
 
   const [property, setProperty] = useState<Property | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isFavorite, setIsFavorite] = useState(false);
+  const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
+
+  const isFavorite = propertyId ? favorites.includes(propertyId) : false;
 
   const isOwner = isAuthenticated && user && property && user.id === property.host.id;
 
@@ -140,8 +143,28 @@ export default function PropertyDetailPage() {
               <motion.button
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
-                onClick={() => setIsFavorite(!isFavorite)}
-                className="p-3 rounded-full bg-secondary text-foreground hover:bg-accent/10 transition-colors"
+                onClick={async () => {
+                  if (!property || isTogglingFavorite) return;
+                  if (!isAuthenticated) {
+                    router.push(`/auth/login?redirect=${encodeURIComponent(`/property/${property.id}`)}`);
+                    return;
+                  }
+                  const nextFavorite = !isFavorite;
+                  if (nextFavorite) addFavorite(property.id);
+                  else removeFavorite(property.id);
+                  setIsTogglingFavorite(true);
+                  try {
+                    if (nextFavorite) await wishlistApi.add(property.id);
+                    else await wishlistApi.remove(property.id);
+                  } catch {
+                    if (nextFavorite) removeFavorite(property.id);
+                    else addFavorite(property.id);
+                  } finally {
+                    setIsTogglingFavorite(false);
+                  }
+                }}
+                disabled={isTogglingFavorite}
+                className="p-3 rounded-full bg-secondary text-foreground hover:bg-accent/10 transition-colors disabled:opacity-70"
               >
                 <Heart
                   size={24}

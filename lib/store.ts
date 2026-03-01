@@ -64,6 +64,7 @@ interface PropertyStore {
   favorites: string[];
   addFavorite: (propertyId: string) => void;
   removeFavorite: (propertyId: string) => void;
+  setFavorites: (propertyIds: string[]) => void;
   setProperties: (properties: Property[]) => void;
 }
 
@@ -98,13 +99,15 @@ export const useAuthStore = create<AuthStore>((set) => ({
     }),
   setAuthReady: (ready) => set({ authReady: ready }),
   setUserMode: (mode) => set({ userMode: mode }),
-  logout: () =>
+  logout: () => {
     set({
       user: null,
       isAuthenticated: false,
       accessToken: null,
       refreshToken: null,
-    }),
+    });
+    usePropertyStore.getState().setFavorites([]);
+  },
 }));
 
 export const usePropertyStore = create<PropertyStore>((set) => ({
@@ -122,6 +125,13 @@ export const usePropertyStore = create<PropertyStore>((set) => ({
       favorites: state.favorites.filter((id) => id !== propertyId),
       properties: state.properties.map((p) =>
         p.id === propertyId ? { ...p, isFavorite: false } : p
+      ),
+    })),
+  setFavorites: (propertyIds) =>
+    set((state) => ({
+      favorites: propertyIds,
+      properties: state.properties.map((p) =>
+        ({ ...p, isFavorite: propertyIds.includes(p.id) }),
       ),
     })),
   setProperties: (properties) => set({ properties }),

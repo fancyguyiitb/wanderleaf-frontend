@@ -332,3 +332,27 @@ export const listingsApi = {
     return data.results.map(mapApiListingToProperty);
   },
 };
+
+/* ─── Wishlist API ─── */
+
+export const wishlistApi = {
+  /** Get all wishlisted listings for the current user (requires auth). */
+  async list(): Promise<Property[]> {
+    const data = await apiFetch<ApiListing[]>(`/api/v1/wishlist/`);
+    return data.map(mapApiListingToProperty);
+  },
+
+  /** Add a listing to the wishlist (requires auth). */
+  async add(listingId: string): Promise<void> {
+    await apiFetch(`/api/v1/wishlist/${listingId}/`, {
+      method: 'POST',
+    });
+  },
+
+  /** Remove a listing from the wishlist (requires auth). */
+  async remove(listingId: string): Promise<void> {
+    await apiFetch(`/api/v1/wishlist/${listingId}/`, {
+      method: 'DELETE',
+    });
+  },
+};
