@@ -7,19 +7,34 @@ export default function Footer() {
   const footerSections = [
     {
       title: 'Support',
-      links: ['Help Center', 'Safety Info', 'Cancellation Options', 'Report Concern'],
+      links: [
+        { label: 'Safety Info', href: '/safety' },
+        { label: 'Cancellation Options', href: '/cancellation' },
+        { label: 'Report Concern', href: '/report' },
+      ],
     },
     {
       title: 'Hosting',
-      links: ['Host a Home', 'Host an Experience', 'Responsible Hosting', 'Community Guidelines'],
+      links: [
+        { label: 'Host a Home', href: '/host' },
+        { label: 'Responsible Hosting', href: '/responsible-hosting' },
+        { label: 'Community Guidelines', href: '/community-guidelines' },
+      ],
     },
     {
       title: 'About',
-      links: ['About Us', 'Blog', 'Careers', 'Press'],
+      links: [
+        { label: 'About Us', href: '/about' },
+        { label: 'Blog', href: '/blog' },
+        { label: 'Careers', href: '/careers' },
+      ],
     },
     {
       title: 'Legal',
-      links: ['Terms', 'Privacy', 'Cookie Settings', 'Accessibility'],
+      links: [
+        { label: 'Terms', href: '/terms' },
+        { label: 'Privacy', href: '/privacy' },
+      ],
     },
   ];
 
@@ -34,10 +49,10 @@ export default function Footer() {
                 {section.title}
               </h4>
               <ul className="space-y-2">
-                {section.links.map((link) => (
-                  <li key={link}>
-                    <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors text-sm">
-                      {link}
+                {section.links.map((link: { label: string; href: string }) => (
+                  <li key={link.label}>
+                    <Link href={link.href} className="text-muted-foreground hover:text-foreground transition-colors text-sm">
+                      {link.label}
                     </Link>
                   </li>
                 ))}
@@ -62,18 +77,18 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Right: Social Icons */}
+          {/* Right: Social Icons - Coming Soon */}
           <div className="flex items-center gap-6">
-            <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link href="/coming-soon" className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Facebook">
               <Facebook size={18} />
             </Link>
-            <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link href="/coming-soon" className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Instagram">
               <Instagram size={18} />
             </Link>
-            <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link href="/coming-soon" className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Twitter">
               <Twitter size={18} />
             </Link>
-            <Link href="#" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link href="/coming-soon" className="text-muted-foreground hover:text-foreground transition-colors" aria-label="LinkedIn">
               <Linkedin size={18} />
             </Link>
           </div>

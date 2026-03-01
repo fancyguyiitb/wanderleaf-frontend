@@ -24,8 +24,9 @@ type PersistedAuth = {
  * - Fetches `/api/v1/auth/me/` to refresh user (incl avatar) and keep DB as source of truth
  */
 export default function AuthHydrator() {
-  const { setAuth, logout } = useAuthStore((s) => ({
+  const { setAuth, setAuthReady, logout } = useAuthStore((s) => ({
     setAuth: s.setAuth,
+    setAuthReady: s.setAuthReady,
     logout: s.logout,
   }));
 
@@ -36,23 +37,35 @@ export default function AuthHydrator() {
     if (didRun.current) return;
     didRun.current = true;
 
-    if (typeof window === "undefined") return;
+    const markReady = () => setAuthReady(true);
+
+    if (typeof window === "undefined") {
+      markReady();
+      return;
+    }
 
     const raw = window.localStorage.getItem("wanderleaf_auth");
-    if (!raw) return;
+    if (!raw) {
+      markReady();
+      return;
+    }
 
     let parsed: PersistedAuth | null = null;
     try {
       parsed = JSON.parse(raw) as PersistedAuth;
     } catch {
       window.localStorage.removeItem("wanderleaf_auth");
+      markReady();
       return;
     }
 
     const access = parsed?.access ?? "";
     const refresh = parsed?.refresh ?? null;
     const persistedUser = parsed?.user ?? null;
-    if (!access || !persistedUser) return;
+    if (!access || !persistedUser) {
+      markReady();
+      return;
+    }
 
     // 1) Populate Zustand quickly so UI doesn't fall back to "Guest User"
     setAuth({
@@ -66,6 +79,7 @@ export default function AuthHydrator() {
       accessToken: access,
       refreshToken: refresh,
     });
+    markReady(); // Allow protected pages to render immediately; /me refresh runs in background
 
     // 2) Refresh user from backend (authoritative), especially for avatar changes
     (async () => {
@@ -109,7 +123,7 @@ export default function AuthHydrator() {
         }
       }
     })();
-  }, [logout, setAuth]);
+  }, [logout, setAuth, setAuthReady]);
 
   return null;
 }

@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/card';
 import { Mail, User, ImageIcon } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
+import RequireAuth from '@/components/require-auth';
 import { apiFetch, getApiBaseUrl } from '@/lib/api';
 import { getAvatarUrl } from '@/lib/avatar';
 
@@ -298,6 +299,7 @@ export default function ProfilePage() {
   };
 
   return (
+    <RequireAuth>
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
@@ -572,6 +574,7 @@ export default function ProfilePage() {
 
       <Footer />
     </div>
+    </RequireAuth>
   );
 }
 

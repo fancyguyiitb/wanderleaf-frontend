@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
+import RequireAuth from '@/components/require-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart3, Users, DollarSign, Calendar, PlusCircle, Edit2, Trash2, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -53,6 +54,7 @@ export default function HostDashboardPage() {
   };
 
   return (
+    <RequireAuth>
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
@@ -402,5 +404,6 @@ export default function HostDashboardPage() {
 
       <Footer />
     </div>
+    </RequireAuth>
   );
 }

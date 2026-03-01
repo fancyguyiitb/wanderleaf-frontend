@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
+import RequireAuth from '@/components/require-auth';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -216,41 +217,33 @@ export default function EditPropertyPage() {
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
-        <main className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <Loader2 size={36} className="animate-spin text-primary" />
-            <p className="text-muted-foreground">Loading property...</p>
-          </div>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col">
-        <Navbar />
-        <main className="flex-1 max-w-7xl mx-auto px-4 py-20 text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-4">{error}</h1>
-          <button
-            onClick={() => router.back()}
-            className="inline-flex items-center gap-2 text-primary hover:underline"
-          >
-            <ArrowLeft size={16} />
-            Go back
-          </button>
-        </main>
-        <Footer />
-      </div>
-    );
-  }
-
-  return (
+  const pageContent = isLoading ? (
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar />
+      <main className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 size={36} className="animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading property...</p>
+        </div>
+      </main>
+      <Footer />
+    </div>
+  ) : error ? (
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar />
+      <main className="flex-1 max-w-7xl mx-auto px-4 py-20 text-center">
+        <h1 className="text-2xl font-bold text-foreground mb-4">{error}</h1>
+        <button
+          onClick={() => router.back()}
+          className="inline-flex items-center gap-2 text-primary hover:underline"
+        >
+          <ArrowLeft size={16} />
+          Go back
+        </button>
+      </main>
+      <Footer />
+    </div>
+  ) : (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
 
@@ -605,4 +598,6 @@ export default function EditPropertyPage() {
       <Footer />
     </div>
   );
+
+  return <RequireAuth>{pageContent}</RequireAuth>;
 }

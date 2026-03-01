@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import { Mail, Lock, User, Eye, EyeOff, CheckCircle, Phone } from 'lucide-react';
@@ -62,11 +62,20 @@ const signupSchema = z
 
 type SignupValues = z.infer<typeof signupSchema>;
 
+function getSafeRedirect(redirect: string | null): string {
+  if (!redirect || typeof redirect !== 'string') return '/dashboard';
+  const decoded = decodeURIComponent(redirect);
+  if (!decoded.startsWith('/') || decoded.startsWith('/auth')) return '/dashboard';
+  return decoded;
+}
+
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const setAuth = useAuthStore((state) => state.setAuth);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = getSafeRedirect(searchParams.get('redirect'));
 
   const form = useForm<SignupValues>({
     resolver: zodResolver(signupSchema),
@@ -133,7 +142,7 @@ export default function SignupPage() {
         refreshToken: loginResponse.refresh ?? null,
       });
 
-      router.push('/dashboard');
+      router.push(redirectTo);
     } catch (error: any) {
       const message = error?.message ?? 'Unable to create your account. Please try again.';
       form.setError('email', { type: 'manual', message });
@@ -366,7 +375,10 @@ export default function SignupPage() {
 
                   <p className="text-center text-sm text-muted-foreground">
                     Already have an account?{' '}
-                    <Link href="/auth/login" className="font-semibold text-primary hover:underline">
+                    <Link
+                      href={searchParams.get('redirect') ? `/auth/login?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : '/auth/login'}
+                      className="font-semibold text-primary hover:underline"
+                    >
                       Sign in
                     </Link>
                   </p>
