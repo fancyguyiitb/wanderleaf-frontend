@@ -3,9 +3,11 @@
 import Image from 'next/image';
 import { Heart, MapPin, Star } from 'lucide-react';
 import { Property } from '@/lib/store';
-import { usePropertyStore } from '@/lib/store';
+import { usePropertyStore, useAuthStore } from '@/lib/store';
+import { wishlistApi } from '@/lib/api';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 interface PropertyCardProps {
@@ -14,16 +16,36 @@ interface PropertyCardProps {
 }
 
 export default function PropertyCard({ property, index = 0 }: PropertyCardProps) {
+  const router = useRouter();
   const [isImageLoading, setIsImageLoading] = useState(true);
+  const [isToggling, setIsToggling] = useState(false);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { favorites, addFavorite, removeFavorite } = usePropertyStore();
   const isFavorite = favorites.includes(property.id);
 
-  const handleFavoriteClick = (e: React.MouseEvent) => {
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (isFavorite) {
-      removeFavorite(property.id);
-    } else {
-      addFavorite(property.id);
+    e.stopPropagation();
+    if (isToggling) return;
+
+    if (!isAuthenticated) {
+      router.push(`/auth/login?redirect=${encodeURIComponent(`/property/${property.id}`)}`);
+      return;
+    }
+
+    const nextFavorite = !isFavorite;
+    if (nextFavorite) addFavorite(property.id);
+    else removeFavorite(property.id);
+
+    setIsToggling(true);
+    try {
+      if (nextFavorite) await wishlistApi.add(property.id);
+      else await wishlistApi.remove(property.id);
+    } catch {
+      if (nextFavorite) removeFavorite(property.id);
+      else addFavorite(property.id);
+    } finally {
+      setIsToggling(false);
     }
   };
 

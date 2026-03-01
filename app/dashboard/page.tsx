@@ -27,9 +27,10 @@ import {
   Eye,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuthStore, useHostListingStore, Property } from '@/lib/store';
+import { useAuthStore, useHostListingStore, usePropertyStore, Property } from '@/lib/store';
 import RequireAuth from '@/components/require-auth';
-import { listingsApi } from '@/lib/api';
+import { listingsApi, wishlistApi } from '@/lib/api';
+import PropertyCard from '@/components/property-card';
 import { getAvatarUrl } from '@/lib/avatar';
 
 const formatDate = (dateStr: string) =>
@@ -49,8 +50,11 @@ export default function DashboardPage() {
 
   const { hostListings, addHostListing, removeHostListing, setHostListings } =
     useHostListingStore();
+  const favorites = usePropertyStore((s) => s.favorites);
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [savedProperties, setSavedProperties] = useState<Property[]>([]);
+  const [isLoadingSaved, setIsLoadingSaved] = useState(false);
   const [isLoadingListings, setIsLoadingListings] = useState(false);
   const [listingsError, setListingsError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -81,6 +85,23 @@ export default function DashboardPage() {
   useEffect(() => {
     fetchListings();
   }, [fetchListings]);
+
+  const fetchSavedProperties = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setIsLoadingSaved(true);
+    try {
+      const list = await wishlistApi.list();
+      setSavedProperties(list);
+    } catch {
+      setSavedProperties([]);
+    } finally {
+      setIsLoadingSaved(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    if (activeTab === 'saved') fetchSavedProperties();
+  }, [activeTab, fetchSavedProperties]);
 
   const handleCreateProperty = (property: Property) => {
     addHostListing(property);
@@ -123,8 +144,6 @@ export default function DashboardPage() {
     totalPrice: number;
     property: Property;
   }[] = [];
-
-  const savedProperties: Property[] = [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -456,54 +475,25 @@ export default function DashboardPage() {
 
             {/* ── Saved Tab ── */}
             <TabsContent value="saved" className="space-y-4">
-              {savedProperties.length > 0 ? (
+              {isLoadingSaved ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-4">
+                  <Loader2 size={32} className="animate-spin text-primary" />
+                  <p className="text-muted-foreground">Loading your saved properties...</p>
+                </div>
+              ) : savedProperties.filter((p) => favorites.includes(p.id)).length > 0 ? (
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {savedProperties.map((property, index) => (
-                    <motion.div
-                      key={property.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="card-elegant overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
-                    >
-                      <div className="relative w-full aspect-video overflow-hidden bg-muted">
-                        <img
-                          src={property.images[0]}
-                          alt={property.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <button className="absolute top-3 right-3 p-2 rounded-full bg-white/90 hover:bg-white transition-colors">
-                          <Heart size={20} className="fill-accent text-accent" />
-                        </button>
-                      </div>
-                      <div className="p-4">
-                        <h3 className="font-playfair font-semibold text-lg text-foreground mb-2">
-                          {property.title}
-                        </h3>
-                        <p className="text-muted-foreground text-sm flex items-center gap-2 mb-3">
-                          <MapPin size={14} />
-                          {property.location}
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-muted-foreground text-sm">Price per night</p>
-                            <p className="text-2xl font-bold text-primary">${property.price}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-muted-foreground text-sm">Rating</p>
-                            <p className="text-lg font-semibold text-foreground">{property.rating}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                  {savedProperties
+                    .filter((p) => favorites.includes(p.id))
+                    .map((property, index) => (
+                      <PropertyCard key={property.id} property={property} index={index} />
+                    ))}
                 </div>
               ) : (
                 <div className="text-center py-16">
                   <Heart size={48} className="mx-auto text-muted-foreground mb-4" />
                   <h3 className="font-playfair text-xl font-bold text-foreground mb-2">No Saved Properties</h3>
                   <p className="text-muted-foreground max-w-md mx-auto">
-                    Properties you save will appear here for easy access.
+                    Click the heart on any property to save it here for easy access.
                   </p>
                 </div>
               )}
