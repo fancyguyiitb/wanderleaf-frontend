@@ -14,9 +14,11 @@ import {
   Loader2,
   ExternalLink,
   Home,
+  XCircle,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { bookingsApi, type ApiBookingDetail } from '@/lib/api';
+import { useAuthStore } from '@/lib/store';
 import { getAvatarUrl } from '@/lib/avatar';
 
 const formatDate = (dateStr: string) =>
@@ -48,9 +50,32 @@ export default function BookingDetailPage() {
   const router = useRouter();
   const bookingId = params.id as string;
 
+  const user = useAuthStore((s) => s.user);
   const [booking, setBooking] = useState<ApiBookingDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  const isHost = booking && user && String(user.id) === String(booking.host.id);
+  const isCancelled = booking && (booking.status === 'cancelled_by_guest' || booking.status === 'cancelled_by_host');
+  const cancelledByGuest = booking?.status === 'cancelled_by_guest';
+  const cancelledByHost = booking?.status === 'cancelled_by_host';
+
+  const handleCancel = async () => {
+    if (!booking?.id || !booking.can_be_cancelled || isCancelling) return;
+    if (!confirm('Are you sure you want to cancel this booking? The dates will be freed and the guest will be notified.')) return;
+    setIsCancelling(true);
+    setCancelError(null);
+    try {
+      const res = await bookingsApi.cancel(booking.id);
+      setBooking(res.booking);
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : 'Failed to cancel booking.');
+    } finally {
+      setIsCancelling(false);
+    }
+  };
 
   useEffect(() => {
     if (!bookingId) return;
@@ -103,11 +128,11 @@ export default function BookingDetailPage() {
           className="mb-8"
         >
           <Link
-            href="/dashboard?tab=trips"
+            href={isHost ? `/host/bookings/${booking.listing.id}` : '/dashboard?tab=trips'}
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft size={18} />
-            Back to My Trips
+            {isHost ? 'Back to property bookings' : 'Back to My Trips'}
           </Link>
         </motion.div>
 
@@ -268,33 +293,117 @@ export default function BookingDetailPage() {
               </div>
             </motion.div>
 
-            {/* Host */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="card-elegant p-6 rounded-xl"
-            >
-              <h3 className="font-semibold text-foreground mb-4">Your host</h3>
-              <div className="flex items-center gap-4">
-                <img
-                  src={getAvatarUrl(booking.host.avatar, booking.host.name)}
-                  alt={booking.host.name}
-                  className="w-14 h-14 rounded-full object-cover"
-                />
-                <div>
-                  <p className="font-medium text-foreground">{booking.host.name}</p>
-                  <p className="text-sm text-muted-foreground">{booking.host.email}</p>
-                </div>
-              </div>
-              <Link
-                href={`/property/${booking.listing.id}`}
-                className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary text-primary font-medium hover:bg-primary/5 transition-colors"
+            {/* Host (only for guests) or Guest (for hosts) */}
+            {!isHost && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="card-elegant p-6 rounded-xl"
               >
-                <ExternalLink size={16} />
-                View property listing
-              </Link>
-            </motion.div>
+                <h3 className="font-semibold text-foreground mb-4">Your host</h3>
+                <div className="flex items-center gap-4">
+                  <img
+                    src={getAvatarUrl(booking.host.avatar, booking.host.name)}
+                    alt={booking.host.name}
+                    className="w-14 h-14 rounded-full object-cover"
+                  />
+                  <div>
+                    <p className="font-medium text-foreground">{booking.host.name}</p>
+                    <p className="text-sm text-muted-foreground">{booking.host.email}</p>
+                  </div>
+                </div>
+                <Link
+                  href={`/property/${booking.listing.id}`}
+                  className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary text-primary font-medium hover:bg-primary/5 transition-colors"
+                >
+                  <ExternalLink size={16} />
+                  View property listing
+                </Link>
+              </motion.div>
+            )}
+
+            {/* Guest info for hosts */}
+            {isHost && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="card-elegant p-6 rounded-xl"
+              >
+                <h3 className="font-semibold text-foreground mb-4">Guest</h3>
+                <div className="flex items-center gap-4">
+                  <img
+                    src={getAvatarUrl(booking.guest.avatar, booking.guest.name)}
+                    alt={booking.guest.name}
+                    className="w-14 h-14 rounded-full object-cover"
+                  />
+                  <div>
+                    <p className="font-medium text-foreground">{booking.guest.name}</p>
+                    <p className="text-sm text-muted-foreground">{booking.guest.email}</p>
+                  </div>
+                </div>
+                <Link
+                  href={`/property/${booking.listing.id}`}
+                  className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary text-primary font-medium hover:bg-primary/5 transition-colors"
+                >
+                  <ExternalLink size={16} />
+                  View property listing
+                </Link>
+              </motion.div>
+            )}
+
+            {/* Cancel booking (host only) */}
+            {isHost && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="card-elegant p-6 rounded-xl"
+              >
+                <h3 className="font-semibold text-foreground mb-4">Cancel booking</h3>
+                {cancelledByGuest && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      The guest cancelled this booking. The dates are freed and no further action is needed.
+                    </p>
+                    <button
+                      disabled
+                      className="w-full py-2.5 rounded-lg bg-muted text-muted-foreground cursor-not-allowed text-sm font-medium"
+                    >
+                      User already cancelled this booking
+                    </button>
+                  </div>
+                )}
+                {cancelledByHost && (
+                  <p className="text-sm text-muted-foreground">
+                    You cancelled this booking. The dates have been freed for the property.
+                  </p>
+                )}
+                {!isCancelled && booking.can_be_cancelled && (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Cancel this reservation to free up the dates. The guest will no longer see it in their trips.
+                    </p>
+                    {cancelError && (
+                      <p className="text-sm text-destructive">{cancelError}</p>
+                    )}
+                    <button
+                      onClick={handleCancel}
+                      disabled={isCancelling}
+                      className="w-full py-2.5 rounded-lg bg-destructive/10 text-destructive font-medium hover:bg-destructive/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                      {isCancelling ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : (
+                        <XCircle size={18} />
+                      )}
+                      {isCancelling ? 'Cancelling...' : 'Cancel booking'}
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            )}
           </div>
         </div>
       </main>
