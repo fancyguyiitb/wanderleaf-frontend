@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import RequireAuth from '@/components/require-auth';
+import CancelBookingDialog from '@/components/cancel-booking-dialog';
 import {
   ArrowLeft,
   MapPin,
@@ -56,6 +57,7 @@ export default function BookingDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const isHost = booking && user && String(user.id) === String(booking.host.id);
   const isCancelled = booking && (booking.status === 'cancelled_by_guest' || booking.status === 'cancelled_by_host');
@@ -64,18 +66,20 @@ export default function BookingDetailPage() {
 
   const handleCancel = async () => {
     if (!booking?.id || !booking.can_be_cancelled || isCancelling) return;
-    if (!confirm('Are you sure you want to cancel this booking? The dates will be freed and the guest will be notified.')) return;
     setIsCancelling(true);
     setCancelError(null);
     try {
       const res = await bookingsApi.cancel(booking.id);
       setBooking(res.booking);
+      setShowCancelDialog(false);
     } catch (err) {
       setCancelError(err instanceof Error ? err.message : 'Failed to cancel booking.');
     } finally {
       setIsCancelling(false);
     }
   };
+
+  const openCancelDialog = () => setShowCancelDialog(true);
 
   useEffect(() => {
     if (!bookingId) return;
@@ -313,13 +317,12 @@ export default function BookingDetailPage() {
                     <p className="text-sm text-muted-foreground">{booking.host.email}</p>
                   </div>
                 </div>
-                <Link
-                  href={`/property/${booking.listing.id}`}
-                  className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary text-primary font-medium hover:bg-primary/5 transition-colors"
+                <button
+                  disabled={isCancelled}
+                  className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary text-primary font-medium hover:bg-primary/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:border-muted disabled:text-muted-foreground"
                 >
-                  <ExternalLink size={16} />
-                  View property listing
-                </Link>
+                  {isCancelled ? 'Contact Owner (booking cancelled)' : 'Contact Owner'}
+                </button>
               </motion.div>
             )}
 
@@ -343,13 +346,12 @@ export default function BookingDetailPage() {
                     <p className="text-sm text-muted-foreground">{booking.guest.email}</p>
                   </div>
                 </div>
-                <Link
-                  href={`/property/${booking.listing.id}`}
-                  className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary text-primary font-medium hover:bg-primary/5 transition-colors"
+                <button
+                  disabled={isCancelled}
+                  className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary text-primary font-medium hover:bg-primary/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:border-muted disabled:text-muted-foreground"
                 >
-                  <ExternalLink size={16} />
-                  View property listing
-                </Link>
+                  {isCancelled ? 'Contact Customer (booking cancelled)' : 'Contact Customer'}
+                </button>
               </motion.div>
             )}
 
@@ -383,13 +385,13 @@ export default function BookingDetailPage() {
                 {!isCancelled && booking.can_be_cancelled && (
                   <div className="space-y-3">
                     <p className="text-sm text-muted-foreground">
-                      Cancel this reservation to free up the dates. The guest will no longer see it in their trips.
+                      Cancel this reservation to free up the dates. The guest will receive a full refund and will no longer see it in their trips.
                     </p>
                     {cancelError && (
                       <p className="text-sm text-destructive">{cancelError}</p>
                     )}
                     <button
-                      onClick={handleCancel}
+                      onClick={openCancelDialog}
                       disabled={isCancelling}
                       className="w-full py-2.5 rounded-lg bg-destructive/10 text-destructive font-medium hover:bg-destructive/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                     >
@@ -404,6 +406,46 @@ export default function BookingDetailPage() {
                 )}
               </motion.div>
             )}
+
+            {/* Cancel booking (guest only) */}
+            {!isHost && !isCancelled && booking.can_be_cancelled && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.35 }}
+                className="card-elegant p-6 rounded-xl"
+              >
+                <h3 className="font-semibold text-foreground mb-4">Cancel booking</h3>
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    Cancel this reservation? You will receive a full refund and the dates will be freed for the property.
+                  </p>
+                  {cancelError && (
+                    <p className="text-sm text-destructive">{cancelError}</p>
+                  )}
+                  <button
+                    onClick={openCancelDialog}
+                    disabled={isCancelling}
+                    className="w-full py-2.5 rounded-lg bg-destructive/10 text-destructive font-medium hover:bg-destructive/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isCancelling ? (
+                      <Loader2 size={18} className="animate-spin" />
+                    ) : (
+                      <XCircle size={18} />
+                    )}
+                    {isCancelling ? 'Cancelling...' : 'Cancel booking'}
+                  </button>
+                </div>
+              </motion.div>
+            )}
+
+            <CancelBookingDialog
+              open={showCancelDialog}
+              onOpenChange={(open) => { if (!open) setShowCancelDialog(false); }}
+              isHost={!!isHost}
+              isCancelling={isCancelling}
+              onConfirm={handleCancel}
+            />
           </div>
         </div>
       </main>
