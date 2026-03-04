@@ -459,6 +459,16 @@ export const bookingsApi = {
       method: 'POST',
     });
   },
+
+  async cancel(bookingId: string, reason?: string) {
+    return apiFetch<{ detail: string; booking: ApiBookingDetail }>(
+      `/api/v1/bookings/${bookingId}/cancel/`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ reason: reason ?? '' }),
+      }
+    );
+  },
 };
 
 /* ─── Wishlist API ─── */
