@@ -75,6 +75,22 @@ export const apiFetch = async <TResponse>(
         statusText: response.statusText,
         body: data,
       });
+
+      // If auth token is invalid or expired, force logout and redirect to login.
+      if (response.status === 401 || response.status === 403) {
+        if (typeof window !== 'undefined') {
+          try {
+            useAuthStore.getState().logout();
+            window.localStorage.removeItem('wanderleaf_auth');
+          } catch {
+            // ignore storage errors
+          }
+          const currentPath = window.location.pathname + window.location.search;
+          const redirect = encodeURIComponent(currentPath || '/');
+          window.location.href = `/auth/login?redirect=${redirect}`;
+        }
+      }
+
       const message =
         (data as any)?.detail ||
         (data as any)?.message ||
