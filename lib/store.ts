@@ -32,6 +32,10 @@ export interface Property {
   };
   isFavorite?: boolean;
   createdAt: string;
+  /** From listing detail - for date picker and price calc */
+  bookedDates?: { check_in: string; check_out: string }[];
+  serviceFeePercent?: number;
+  cleaningFee?: number;
 }
 
 export interface Booking {

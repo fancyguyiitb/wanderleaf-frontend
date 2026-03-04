@@ -306,7 +306,7 @@ export default function PropertyDetailPage() {
 
           {/* Right Column - Booking Widget */}
           <div className="lg:col-span-1">
-            <BookingWidget pricePerNight={property.price} propertyId={property.id} />
+            <BookingWidget property={property} />
           </div>
         </div>
       </main>

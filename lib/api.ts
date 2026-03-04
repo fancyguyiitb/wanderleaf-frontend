@@ -121,6 +121,10 @@ export interface ApiListing {
   host: ApiListingHost;
   created_at: string;
   updated_at: string;
+  /** Only present in detail response - for calendar and price calc */
+  booked_dates?: { check_in: string; check_out: string }[];
+  service_fee_percent?: number;
+  cleaning_fee?: number;
 }
 
 export interface ApiPaginatedResponse<T> {
@@ -159,6 +163,9 @@ export function mapApiListingToProperty(api: ApiListing): Property {
       isVerified: false,
     },
     createdAt: api.created_at,
+    bookedDates: api.booked_dates,
+    serviceFeePercent: api.service_fee_percent ?? 12,
+    cleaningFee: api.cleaning_fee ?? 25,
   };
 }
 
@@ -330,6 +337,63 @@ export const listingsApi = {
       { skipAuthHeader: true }
     );
     return data.results.map(mapApiListingToProperty);
+  },
+};
+
+/* ─── Bookings API ─── */
+
+export interface CreateBookingPayload {
+  listing_id: string;
+  check_in: string;
+  check_out: string;
+  num_guests: number;
+  special_requests?: string;
+}
+
+export interface ApiBooking {
+  id: string;
+  listing: {
+    id: string;
+    title: string;
+    location: string;
+    images: string[];
+    price_per_night: string;
+  };
+  check_in: string;
+  check_out: string;
+  num_guests: number;
+  num_nights: number;
+  total_price: string;
+  status: string;
+  status_display: string;
+  created_at: string;
+}
+
+export const bookingsApi = {
+  async create(payload: CreateBookingPayload) {
+    return apiFetch<{
+      booking: ApiBooking;
+      payment: Record<string, unknown>;
+    }>('/api/v1/bookings/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async list(params?: { status?: string; upcoming?: boolean; past?: boolean }) {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.upcoming) searchParams.set('upcoming', 'true');
+    if (params?.past) searchParams.set('past', 'true');
+    const qs = searchParams.toString();
+    const url = `/api/v1/bookings/${qs ? `?${qs}` : ''}`;
+    return apiFetch<ApiBooking[] | { count: number; next: string | null; previous: string | null; results: ApiBooking[] }>(url);
+  },
+
+  async confirm(bookingId: string) {
+    return apiFetch<{ detail: string; booking: ApiBooking }>(`/api/v1/bookings/${bookingId}/confirm/`, {
+      method: 'POST',
+    });
   },
 };
 

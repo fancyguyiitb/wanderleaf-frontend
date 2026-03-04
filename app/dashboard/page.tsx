@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
@@ -29,7 +29,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore, useHostListingStore, usePropertyStore, Property } from '@/lib/store';
 import RequireAuth from '@/components/require-auth';
-import { listingsApi, wishlistApi } from '@/lib/api';
+import { listingsApi, wishlistApi, bookingsApi, type ApiBooking } from '@/lib/api';
 import PropertyCard from '@/components/property-card';
 import { getAvatarUrl } from '@/lib/avatar';
 
@@ -41,8 +41,20 @@ const formatDate = (dateStr: string) =>
   });
 
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState('properties');
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(
+    tabParam && ['properties', 'trips', 'bookings', 'saved', 'payments'].includes(tabParam)
+      ? tabParam
+      : 'properties'
+  );
   const router = useRouter();
+
+  useEffect(() => {
+    if (tabParam && ['properties', 'trips', 'bookings', 'saved', 'payments'].includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
 
   const authUser = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -54,8 +66,18 @@ export default function DashboardPage() {
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [savedProperties, setSavedProperties] = useState<Property[]>([]);
+  const [bookings, setBookings] = useState<{
+    id: string;
+    propertyId: string;
+    checkIn: string;
+    checkOut: string;
+    status: string;
+    totalPrice: number;
+    property: Property;
+  }[]>([]);
   const [isLoadingSaved, setIsLoadingSaved] = useState(false);
   const [isLoadingListings, setIsLoadingListings] = useState(false);
+  const [isLoadingBookings, setIsLoadingBookings] = useState(false);
   const [listingsError, setListingsError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
@@ -103,6 +125,56 @@ export default function DashboardPage() {
     if (activeTab === 'saved') fetchSavedProperties();
   }, [activeTab, fetchSavedProperties]);
 
+  const fetchBookings = useCallback(async () => {
+    if (!isAuthenticated) return;
+    setIsLoadingBookings(true);
+    try {
+      const data = await bookingsApi.list();
+      const list = Array.isArray(data) ? data : (data as { results: ApiBooking[] }).results;
+      const mapped = list.map((b: ApiBooking) => ({
+        id: b.id,
+        propertyId: b.listing.id,
+        checkIn: b.check_in,
+        checkOut: b.check_out,
+        status:
+          b.status === 'confirmed' || b.status === 'completed'
+            ? 'confirmed'
+            : b.status === 'pending_payment'
+              ? 'pending'
+              : b.status.includes('cancelled') || b.status === 'refunded'
+                ? 'cancelled'
+                : b.status,
+        totalPrice: Number(b.total_price),
+        property: {
+          id: b.listing.id,
+          title: b.listing.title,
+          description: '',
+          location: b.listing.location,
+          coordinates: { lat: 0, lng: 0 },
+          price: Number(b.listing.price_per_night),
+          rating: 0,
+          reviews: 0,
+          images: b.listing.images,
+          amenities: [],
+          bedrooms: 0,
+          bathrooms: 0,
+          guests: b.num_guests,
+          host: { id: '', name: '', rating: 0, isVerified: false },
+          createdAt: '',
+        } as Property,
+      }));
+      setBookings(mapped);
+    } catch {
+      setBookings([]);
+    } finally {
+      setIsLoadingBookings(false);
+    }
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
   const handleCreateProperty = (property: Property) => {
     addHostListing(property);
   };
@@ -134,16 +206,6 @@ export default function DashboardPage() {
     joinDate: 'Joined WanderLeaf',
     verified: false,
   };
-
-  const bookings: {
-    id: string;
-    propertyId: string;
-    checkIn: string;
-    checkOut: string;
-    status: string;
-    totalPrice: number;
-    property: Property;
-  }[] = [];
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -378,7 +440,12 @@ export default function DashboardPage() {
 
             {/* ── Trips Tab ── */}
             <TabsContent value="trips" className="space-y-4">
-              {bookings.length > 0 ? (
+              {isLoadingBookings ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-4">
+                  <Loader2 size={32} className="animate-spin text-primary" />
+                  <p className="text-muted-foreground">Loading your trips...</p>
+                </div>
+              ) : bookings.length > 0 ? (
                 <div className="space-y-4">
                   {bookings.map((booking, index) => (
                     <motion.div
@@ -389,12 +456,16 @@ export default function DashboardPage() {
                       className="card-elegant overflow-hidden hover:shadow-lg transition-shadow"
                     >
                       <div className="flex flex-col sm:flex-row gap-6 p-6">
-                        <div className="w-full sm:w-48 h-40 rounded-lg overflow-hidden flex-shrink-0 bg-muted">
-                          <img
-                            src={booking.property.images[0]}
-                            alt={booking.property.title}
-                            className="w-full h-full object-cover"
-                          />
+                        <div className="w-full sm:w-48 h-40 rounded-lg overflow-hidden flex-shrink-0 bg-muted flex items-center justify-center">
+                          {booking.property.images[0] ? (
+                            <img
+                              src={booking.property.images[0]}
+                              alt={booking.property.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Home className="w-12 h-12 text-muted-foreground" />
+                          )}
                         </div>
                         <div className="flex-1 flex flex-col justify-between">
                           <div>
@@ -445,7 +516,12 @@ export default function DashboardPage() {
             <TabsContent value="bookings" className="space-y-4">
               <div className="card-elegant p-6">
                 <h3 className="font-semibold text-foreground mb-4">Upcoming & Past Bookings</h3>
-                {bookings.length > 0 ? (
+                {isLoadingBookings ? (
+                  <div className="flex flex-col items-center justify-center py-12 gap-4">
+                    <Loader2 size={24} className="animate-spin text-primary" />
+                    <p className="text-muted-foreground text-sm">Loading...</p>
+                  </div>
+                ) : bookings.length > 0 ? (
                   <div className="space-y-3">
                     {bookings.map((booking, index) => (
                       <motion.div
