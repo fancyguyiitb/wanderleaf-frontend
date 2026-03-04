@@ -75,6 +75,22 @@ export const apiFetch = async <TResponse>(
         statusText: response.statusText,
         body: data,
       });
+
+      // If auth token is invalid or expired, force logout and redirect to login.
+      if (response.status === 401 || response.status === 403) {
+        if (typeof window !== 'undefined') {
+          try {
+            useAuthStore.getState().logout();
+            window.localStorage.removeItem('wanderleaf_auth');
+          } catch {
+            // ignore storage errors
+          }
+          const currentPath = window.location.pathname + window.location.search;
+          const redirect = encodeURIComponent(currentPath || '/');
+          window.location.href = `/auth/login?redirect=${redirect}`;
+        }
+      }
+
       const message =
         (data as any)?.detail ||
         (data as any)?.message ||
@@ -121,6 +137,10 @@ export interface ApiListing {
   host: ApiListingHost;
   created_at: string;
   updated_at: string;
+  /** Only present in detail response - for calendar and price calc */
+  booked_dates?: { check_in: string; check_out: string }[];
+  service_fee_percent?: number;
+  cleaning_fee?: number;
 }
 
 export interface ApiPaginatedResponse<T> {
@@ -159,6 +179,9 @@ export function mapApiListingToProperty(api: ApiListing): Property {
       isVerified: false,
     },
     createdAt: api.created_at,
+    bookedDates: api.booked_dates,
+    serviceFeePercent: api.service_fee_percent ?? 12,
+    cleaningFee: api.cleaning_fee ?? 25,
   };
 }
 
@@ -330,6 +353,111 @@ export const listingsApi = {
       { skipAuthHeader: true }
     );
     return data.results.map(mapApiListingToProperty);
+  },
+};
+
+/* ─── Bookings API ─── */
+
+export interface CreateBookingPayload {
+  listing_id: string;
+  check_in: string;
+  check_out: string;
+  num_guests: number;
+  special_requests?: string;
+}
+
+export interface ApiBookingDetail {
+  id: string;
+  listing: {
+    id: string;
+    title: string;
+    location: string;
+    images: string[];
+    price_per_night: string;
+  };
+  guest: { id: string; name: string; email: string; avatar: string | null };
+  host: { id: string; name: string; email: string; avatar: string | null };
+  check_in: string;
+  check_out: string;
+  num_guests: number;
+  price_per_night: string;
+  num_nights: number;
+  subtotal: string;
+  service_fee: string;
+  cleaning_fee: string;
+  total_price: string;
+  status: string;
+  status_display: string;
+  can_be_cancelled: boolean;
+  special_requests: string;
+  cancellation_reason: string;
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiBooking {
+  id: string;
+  listing: {
+    id: string;
+    title: string;
+    location: string;
+    images: string[];
+    price_per_night: string;
+  };
+  guest: { id: string; name: string; email: string; avatar: string | null };
+  check_in: string;
+  check_out: string;
+  num_guests: number;
+  num_nights: number;
+  total_price: string;
+  status: string;
+  status_display: string;
+  created_at: string;
+}
+
+export const bookingsApi = {
+  async create(payload: CreateBookingPayload) {
+    return apiFetch<{
+      booking: ApiBooking;
+      payment: Record<string, unknown>;
+    }>('/api/v1/bookings/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async list(params?: { status?: string; upcoming?: boolean; past?: boolean }) {
+    const searchParams = new URLSearchParams();
+    if (params?.status) searchParams.set('status', params.status);
+    if (params?.upcoming) searchParams.set('upcoming', 'true');
+    if (params?.past) searchParams.set('past', 'true');
+    const qs = searchParams.toString();
+    const url = `/api/v1/bookings/${qs ? `?${qs}` : ''}`;
+    return apiFetch<
+      ApiBooking[] | { count: number; next: string | null; previous: string | null; results: ApiBooking[] }
+    >(url);
+  },
+
+  async listForHost(params?: { listingId?: string; status?: string }) {
+    const searchParams = new URLSearchParams();
+    if (params?.listingId) searchParams.set('listing_id', params.listingId);
+    if (params?.status) searchParams.set('status', params.status);
+    const qs = searchParams.toString();
+    const url = `/api/v1/bookings/host/${qs ? `?${qs}` : ''}`;
+    return apiFetch<
+      ApiBooking[] | { count: number; next: string | null; previous: string | null; results: ApiBooking[] }
+    >(url);
+  },
+
+  async getById(id: string) {
+    return apiFetch<ApiBookingDetail>(`/api/v1/bookings/${id}/`);
+  },
+
+  async confirm(bookingId: string) {
+    return apiFetch<{ detail: string; booking: ApiBooking }>(`/api/v1/bookings/${bookingId}/confirm/`, {
+      method: 'POST',
+    });
   },
 };
 

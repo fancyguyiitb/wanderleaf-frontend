@@ -1,21 +1,25 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import RequireAuth from '@/components/require-auth';
 import { CreditCard, Lock, CheckCircle, MapPin, Calendar, Users, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { listingsApi } from '@/lib/api';
-import { Property } from '@/lib/store';
+import { listingsApi, bookingsApi } from '@/lib/api';
+import { Property, useAuthStore } from '@/lib/store';
 
 export default function CheckoutPage() {
   const searchParams = useSearchParams();
   const propertyId = searchParams.get('propertyId');
+  const user = useAuthStore((s) => s.user);
 
   const [step, setStep] = useState<'payment' | 'confirmation'>('payment');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+  const [createdBookingId, setCreatedBookingId] = useState<string | null>(null);
   const [property, setProperty] = useState<Property | null>(null);
   const [loadingProperty, setLoadingProperty] = useState(true);
 
@@ -36,14 +40,16 @@ export default function CheckoutPage() {
   const checkOut = searchParams.get('checkOut') || '';
   const guestCount = Number(searchParams.get('guests')) || 2;
 
+  const pricePerNight = property?.price ?? 0;
   const nights =
     checkIn && checkOut
       ? Math.max(1, Math.ceil((new Date(checkOut).getTime() - new Date(checkIn).getTime()) / (1000 * 60 * 60 * 24)))
       : 1;
-  const pricePerNight = property?.price ?? 0;
   const subtotal = pricePerNight * nights;
-  const serviceFee = Math.round(subtotal * 0.15);
-  const total = subtotal + serviceFee;
+  const serviceFeePercent = property?.serviceFeePercent ?? 12;
+  const cleaningFee = property?.cleaningFee ?? 25;
+  const serviceFee = Math.round(subtotal * (serviceFeePercent / 100) * 100) / 100;
+  const total = subtotal + serviceFee + cleaningFee;
 
   const booking = {
     property,
@@ -88,11 +94,24 @@ export default function CheckoutPage() {
 
   const handlePayment = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!propertyId || !checkIn || !checkOut) return;
     setIsProcessing(true);
-    // Simulate payment processing
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    setIsProcessing(false);
-    setStep('confirmation');
+    setPaymentError(null);
+    try {
+      const { booking } = await bookingsApi.create({
+        listing_id: propertyId,
+        check_in: checkIn,
+        check_out: checkOut,
+        num_guests: guestCount,
+      });
+      setCreatedBookingId(booking.id);
+      await bookingsApi.confirm(booking.id);
+      setStep('confirmation');
+    } catch (err: unknown) {
+      setPaymentError(err instanceof Error ? err.message : 'Booking failed. Please try again.');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const pageContent = loadingProperty ? (
@@ -142,30 +161,12 @@ export default function CheckoutPage() {
                   transition={{ delay: 0.1 }}
                   className="space-y-8"
                 >
-                  {/* Guest Information */}
+                  {/* Guest Information (from logged-in user) */}
                   <div className="card-elegant p-6 rounded-xl">
-                    <h2 className="font-playfair text-2xl font-bold text-foreground mb-6">Guest Information</h2>
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <input
-                        type="text"
-                        placeholder="First Name"
-                        className="px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground placeholder-muted-foreground"
-                      />
-                      <input
-                        type="text"
-                        placeholder="Last Name"
-                        className="px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground placeholder-muted-foreground"
-                      />
-                      <input
-                        type="email"
-                        placeholder="Email"
-                        className="sm:col-span-2 px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground placeholder-muted-foreground"
-                      />
-                      <input
-                        type="tel"
-                        placeholder="Phone Number"
-                        className="sm:col-span-2 px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground placeholder-muted-foreground"
-                      />
+                    <h2 className="font-playfair text-2xl font-bold text-foreground mb-6">Guest</h2>
+                    <div className="space-y-2 text-foreground">
+                      <p className="font-semibold text-lg">{user?.name}</p>
+                      <p className="text-muted-foreground">{user?.email}</p>
                     </div>
                   </div>
 
@@ -245,6 +246,12 @@ export default function CheckoutPage() {
                           />
                         </div>
                       </div>
+
+                      {paymentError && (
+                        <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                          {paymentError}
+                        </div>
+                      )}
 
                       {/* Agree to Terms */}
                       <label className="flex items-start gap-3 py-4 border-t border-border">
@@ -351,6 +358,10 @@ export default function CheckoutPage() {
                       <span className="text-muted-foreground">Service fee</span>
                       <span className="text-foreground font-medium">${booking.serviceFee}</span>
                     </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Cleaning fee</span>
+                      <span className="text-foreground font-medium">${cleaningFee}</span>
+                    </div>
                     <div className="flex justify-between text-lg font-bold pt-3 border-t border-border">
                       <span>Total</span>
                       <span className="text-primary">${booking.total}</span>
@@ -393,7 +404,9 @@ export default function CheckoutPage() {
             <div className="card-elegant p-8 rounded-xl mb-8 text-left space-y-6">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Confirmation Number</p>
-                <p className="font-mono font-bold text-lg text-foreground">BK-2024-001842</p>
+                <p className="font-mono font-bold text-lg text-foreground">
+                  {createdBookingId ? createdBookingId.slice(0, 8).toUpperCase() : '—'}
+                </p>
               </div>
               <div className="border-t border-b border-border py-6 space-y-4">
                 <div>
@@ -415,22 +428,24 @@ export default function CheckoutPage() {
 
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <motion.a
-                href="/dashboard"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="px-8 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors"
-              >
-                View My Bookings
-              </motion.a>
-              <motion.a
-                href="/"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="px-8 py-3 border border-border rounded-lg font-semibold hover:bg-muted transition-colors text-foreground"
-              >
-                Back to Home
-              </motion.a>
+              <Link href="/dashboard?tab=trips">
+                <motion.span
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="inline-block px-8 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors"
+                >
+                  View My Bookings
+                </motion.span>
+              </Link>
+              <Link href="/">
+                <motion.span
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="inline-block px-8 py-3 border border-border rounded-lg font-semibold hover:bg-muted transition-colors text-foreground"
+                >
+                  Back to Home
+                </motion.span>
+              </Link>
             </div>
           </motion.div>
         )}
