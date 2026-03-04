@@ -405,6 +405,7 @@ export interface ApiBooking {
     images: string[];
     price_per_night: string;
   };
+  guest: { id: string; name: string; email: string; avatar: string | null };
   check_in: string;
   check_out: string;
   num_guests: number;
@@ -433,7 +434,20 @@ export const bookingsApi = {
     if (params?.past) searchParams.set('past', 'true');
     const qs = searchParams.toString();
     const url = `/api/v1/bookings/${qs ? `?${qs}` : ''}`;
-    return apiFetch<ApiBooking[] | { count: number; next: string | null; previous: string | null; results: ApiBooking[] }>(url);
+    return apiFetch<
+      ApiBooking[] | { count: number; next: string | null; previous: string | null; results: ApiBooking[] }
+    >(url);
+  },
+
+  async listForHost(params?: { listingId?: string; status?: string }) {
+    const searchParams = new URLSearchParams();
+    if (params?.listingId) searchParams.set('listing_id', params.listingId);
+    if (params?.status) searchParams.set('status', params.status);
+    const qs = searchParams.toString();
+    const url = `/api/v1/bookings/host/${qs ? `?${qs}` : ''}`;
+    return apiFetch<
+      ApiBooking[] | { count: number; next: string | null; previous: string | null; results: ApiBooking[] }
+    >(url);
   },
 
   async getById(id: string) {

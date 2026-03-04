@@ -10,7 +10,7 @@ import BookingWidget from '@/components/booking-widget';
 import ReviewsSection from '@/components/reviews-section';
 import { listingsApi, wishlistApi } from '@/lib/api';
 import { useAuthStore, usePropertyStore, Property } from '@/lib/store';
-import { Heart, MapPin, Users, Wifi, Wind, Flame, Coffee, Loader2, Edit2, ArrowLeft } from 'lucide-react';
+import { Heart, MapPin, Users, Wifi, Wind, Flame, Coffee, Loader2, Edit2, ArrowLeft, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getAvatarUrl } from '@/lib/avatar';
 
@@ -132,13 +132,22 @@ export default function PropertyDetailPage() {
             </div>
             <div className="flex items-center gap-2">
               {isOwner && (
-                <Link
-                  href={`/property/${property.id}/edit`}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
-                >
-                  <Edit2 size={18} />
-                  <span className="hidden sm:inline">Edit Property</span>
-                </Link>
+                <>
+                  <Link
+                    href={`/host/bookings/${property.id}`}
+                    className="hidden sm:inline-flex items-center gap-2 px-4 py-2.5 border border-border rounded-lg font-medium text-foreground hover:bg-muted transition-colors"
+                  >
+                    <Calendar size={18} />
+                    <span>Show bookings</span>
+                  </Link>
+                  <Link
+                    href={`/property/${property.id}/edit`}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition-colors"
+                  >
+                    <Edit2 size={18} />
+                    <span className="hidden sm:inline">Edit Property</span>
+                  </Link>
+                </>
               )}
               <motion.button
                 whileHover={{ scale: 1.1 }}

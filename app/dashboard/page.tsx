@@ -671,6 +671,13 @@ function DashboardPropertyCard({
                     View
                   </button>
                   <button
+                    onClick={() => { setShowActions(false); router.push(`/host/bookings/${property.id}`); }}
+                    className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2 text-left"
+                  >
+                    <Calendar size={14} />
+                    Show bookings
+                  </button>
+                  <button
                     onClick={() => { setShowActions(false); router.push(`/property/${property.id}/edit`); }}
                     className="w-full px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors flex items-center gap-2 text-left"
                   >
