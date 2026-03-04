@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Navbar from '@/components/navbar';
@@ -44,14 +45,16 @@ export default function DashboardPage() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(
-    tabParam && ['properties', 'trips', 'bookings', 'saved', 'payments'].includes(tabParam)
+    tabParam && ['properties', 'trips', 'saved', 'payments'].includes(tabParam)
       ? tabParam
       : 'properties'
   );
   const router = useRouter();
 
   useEffect(() => {
-    if (tabParam && ['properties', 'trips', 'bookings', 'saved', 'payments'].includes(tabParam)) {
+    if (tabParam === 'bookings') {
+      setActiveTab('trips');
+    } else if (tabParam && ['properties', 'trips', 'saved', 'payments'].includes(tabParam)) {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
@@ -300,15 +303,12 @@ export default function DashboardPage() {
           transition={{ delay: 0.2 }}
         >
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 bg-secondary p-1 rounded-lg mb-8">
+            <TabsList className="grid w-full grid-cols-4 bg-secondary p-1 rounded-lg mb-8">
               <TabsTrigger value="properties" className="data-[state=active]:bg-accent data-[state=active]:text-accent-foreground">
                 Properties
               </TabsTrigger>
               <TabsTrigger value="trips" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 Trips
-              </TabsTrigger>
-              <TabsTrigger value="bookings" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                Bookings
               </TabsTrigger>
               <TabsTrigger value="saved" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                 Saved
@@ -448,14 +448,14 @@ export default function DashboardPage() {
               ) : bookings.length > 0 ? (
                 <div className="space-y-4">
                   {bookings.map((booking, index) => (
-                    <motion.div
-                      key={booking.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="card-elegant overflow-hidden hover:shadow-lg transition-shadow"
-                    >
-                      <div className="flex flex-col sm:flex-row gap-6 p-6">
+                    <Link key={booking.id} href={`/bookings/${booking.id}`}>
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className="card-elegant overflow-hidden hover:shadow-xl transition-all cursor-pointer group border border-transparent hover:border-primary/20"
+                      >
+                        <div className="flex flex-col sm:flex-row gap-6 p-6">
                         <div className="w-full sm:w-48 h-40 rounded-lg overflow-hidden flex-shrink-0 bg-muted flex items-center justify-center">
                           {booking.property.images[0] ? (
                             <img
@@ -495,10 +495,12 @@ export default function DashboardPage() {
                             <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
                               {getStatusText(booking.status)}
                             </span>
+                            <Eye size={18} className="text-muted-foreground group-hover:text-primary transition-colors ml-2" />
                           </div>
                         </div>
-                      </div>
-                    </motion.div>
+                        </div>
+                      </motion.div>
+                    </Link>
                   ))}
                 </div>
               ) : (
@@ -510,43 +512,6 @@ export default function DashboardPage() {
                   </p>
                 </div>
               )}
-            </TabsContent>
-
-            {/* ── Bookings Tab ── */}
-            <TabsContent value="bookings" className="space-y-4">
-              <div className="card-elegant p-6">
-                <h3 className="font-semibold text-foreground mb-4">Upcoming & Past Bookings</h3>
-                {isLoadingBookings ? (
-                  <div className="flex flex-col items-center justify-center py-12 gap-4">
-                    <Loader2 size={24} className="animate-spin text-primary" />
-                    <p className="text-muted-foreground text-sm">Loading...</p>
-                  </div>
-                ) : bookings.length > 0 ? (
-                  <div className="space-y-3">
-                    {bookings.map((booking, index) => (
-                      <motion.div
-                        key={booking.id}
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: index * 0.1 }}
-                        className="flex items-center justify-between p-4 border border-border rounded-lg hover:bg-muted transition-colors"
-                      >
-                        <div>
-                          <p className="font-medium text-foreground">{booking.property.title}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatDate(booking.checkIn)} - {formatDate(booking.checkOut)}
-                          </p>
-                        </div>
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
-                          {getStatusText(booking.status)}
-                        </span>
-                      </motion.div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-center py-8">No bookings yet.</p>
-                )}
-              </div>
             </TabsContent>
 
             {/* ── Saved Tab ── */}

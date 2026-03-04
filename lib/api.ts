@@ -350,6 +350,36 @@ export interface CreateBookingPayload {
   special_requests?: string;
 }
 
+export interface ApiBookingDetail {
+  id: string;
+  listing: {
+    id: string;
+    title: string;
+    location: string;
+    images: string[];
+    price_per_night: string;
+  };
+  guest: { id: string; name: string; email: string; avatar: string | null };
+  host: { id: string; name: string; email: string; avatar: string | null };
+  check_in: string;
+  check_out: string;
+  num_guests: number;
+  price_per_night: string;
+  num_nights: number;
+  subtotal: string;
+  service_fee: string;
+  cleaning_fee: string;
+  total_price: string;
+  status: string;
+  status_display: string;
+  can_be_cancelled: boolean;
+  special_requests: string;
+  cancellation_reason: string;
+  cancelled_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ApiBooking {
   id: string;
   listing: {
@@ -388,6 +418,10 @@ export const bookingsApi = {
     const qs = searchParams.toString();
     const url = `/api/v1/bookings/${qs ? `?${qs}` : ''}`;
     return apiFetch<ApiBooking[] | { count: number; next: string | null; previous: string | null; results: ApiBooking[] }>(url);
+  },
+
+  async getById(id: string) {
+    return apiFetch<ApiBookingDetail>(`/api/v1/bookings/${id}/`);
   },
 
   async confirm(bookingId: string) {
