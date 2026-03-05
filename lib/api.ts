@@ -181,7 +181,7 @@ export function mapApiListingToProperty(api: ApiListing): Property {
     createdAt: api.created_at,
     bookedDates: api.booked_dates,
     serviceFeePercent: api.service_fee_percent ?? 12,
-    cleaningFee: api.cleaning_fee ?? 25,
+    cleaningFee: api.cleaning_fee ?? 250,
   };
 }
 

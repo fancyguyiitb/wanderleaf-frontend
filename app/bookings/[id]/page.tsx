@@ -278,21 +278,21 @@ export default function BookingDetailPage() {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
-                    ${booking.price_per_night} × {booking.num_nights} nights
+                    ₹{booking.price_per_night} × {booking.num_nights} nights
                   </span>
-                  <span className="text-foreground font-medium">${booking.subtotal}</span>
+                  <span className="text-foreground font-medium">₹{booking.subtotal}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Service fee</span>
-                  <span className="text-foreground font-medium">${booking.service_fee}</span>
+                  <span className="text-foreground font-medium">₹{booking.service_fee}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Cleaning fee</span>
-                  <span className="text-foreground font-medium">${booking.cleaning_fee}</span>
+                  <span className="text-foreground font-medium">₹{booking.cleaning_fee}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold pt-3 border-t border-border">
                   <span>Total</span>
-                  <span className="text-primary">${booking.total_price}</span>
+                  <span className="text-primary">₹{booking.total_price}</span>
                 </div>
               </div>
             </motion.div>

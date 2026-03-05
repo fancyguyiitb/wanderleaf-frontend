@@ -18,14 +18,14 @@ export interface PriceBreakdown {
 
 /**
  * Calculate booking price breakdown on the frontend.
- * Uses the same formula as backend (12% service fee + $25 cleaning fee by default).
+ * Uses the same formula as backend (12% service fee + ₹250 cleaning fee by default).
  */
 export function calculateBookingPrice(
   pricePerNight: number,
   checkIn: Date,
   checkOut: Date,
   serviceFeePercent: number = 12,
-  cleaningFee: number = 25
+  cleaningFee: number = 250
 ): PriceBreakdown {
   const numNights = Math.max(1, Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 60 * 60 * 24)));
   const subtotal = pricePerNight * numNights;

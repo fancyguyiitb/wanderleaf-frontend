@@ -75,7 +75,7 @@ export default function CheckoutPage() {
       : 1;
   const subtotal = pricePerNight * nights;
   const serviceFeePercent = property?.serviceFeePercent ?? 12;
-  const cleaningFee = property?.cleaningFee ?? 25;
+  const cleaningFee = property?.cleaningFee ?? 250;
   const serviceFee = Math.round(subtotal * (serviceFeePercent / 100) * 100) / 100;
   const total = subtotal + serviceFee + cleaningFee;
 
@@ -267,7 +267,7 @@ export default function CheckoutPage() {
                         ) : (
                           <>
                             <CreditCard size={20} />
-                            Pay ${booking.total}
+                            Pay ₹{booking.total}
                           </>
                         )}
                       </motion.button>
@@ -331,21 +331,21 @@ export default function CheckoutPage() {
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">
-                        ${booking.pricePerNight} × {booking.nights} nights
+                        ₹{booking.pricePerNight} × {booking.nights} nights
                       </span>
-                      <span className="text-foreground font-medium">${booking.subtotal}</span>
+                      <span className="text-foreground font-medium">₹{booking.subtotal}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Service fee</span>
-                      <span className="text-foreground font-medium">${booking.serviceFee}</span>
+                      <span className="text-foreground font-medium">₹{booking.serviceFee}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Cleaning fee</span>
-                      <span className="text-foreground font-medium">${cleaningFee}</span>
+                      <span className="text-foreground font-medium">₹{cleaningFee}</span>
                     </div>
                     <div className="flex justify-between text-lg font-bold pt-3 border-t border-border">
                       <span>Total</span>
-                      <span className="text-primary">${booking.total}</span>
+                      <span className="text-primary">₹{booking.total}</span>
                     </div>
                   </div>
 
@@ -402,7 +402,7 @@ export default function CheckoutPage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground mb-1">Total Paid</p>
-                  <p className="font-semibold text-lg text-primary">${booking.total}</p>
+                  <p className="font-semibold text-lg text-primary">₹{booking.total}</p>
                 </div>
               </div>
             </div>
