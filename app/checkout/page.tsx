@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
+import Script from 'next/script';
 import { useSearchParams } from 'next/navigation';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
@@ -10,6 +11,33 @@ import { CreditCard, Lock, CheckCircle, MapPin, Calendar, Users, Loader2 } from 
 import { motion } from 'framer-motion';
 import { listingsApi, bookingsApi } from '@/lib/api';
 import { Property, useAuthStore } from '@/lib/store';
+
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
+  }
+}
+
+interface RazorpayOptions {
+  key: string;
+  amount?: number;
+  currency?: string;
+  order_id: string;
+  name?: string;
+  description?: string;
+  prefill?: { name?: string; email?: string };
+  handler: (response: {
+    razorpay_payment_id: string;
+    razorpay_order_id: string;
+    razorpay_signature: string;
+  }) => void;
+  modal?: { ondismiss?: () => void };
+}
+
+interface RazorpayInstance {
+  open: () => void;
+  on: (event: string, handler: () => void) => void;
+}
 
 export default function CheckoutPage() {
   const searchParams = useSearchParams();
@@ -63,56 +91,74 @@ export default function CheckoutPage() {
     total,
   };
 
-  const [cardData, setCardData] = useState({
-    cardName: '',
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-  });
+  const handlePayment = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!propertyId || !checkIn || !checkOut) return;
+      setIsProcessing(true);
+      setPaymentError(null);
+      let openedRazorpay = false;
+      try {
+        const { booking, payment } = await bookingsApi.create({
+          listing_id: propertyId,
+          check_in: checkIn,
+          check_out: checkOut,
+          num_guests: guestCount,
+        });
+        setCreatedBookingId(booking.id);
 
-  const handleCardChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    let formattedValue = value;
+        const orderId = payment?.order_id as string | null;
+        const razorpayKeyId = payment?.razorpay_key_id as string | null;
 
-    if (name === 'cardNumber') {
-      formattedValue = value.replace(/\s/g, '').replace(/(\d{4})/g, '$1 ').trim();
-    }
-
-    if (name === 'expiryDate') {
-      formattedValue = value.replace(/\D/g, '');
-      if (formattedValue.length >= 2) {
-        formattedValue = formattedValue.slice(0, 2) + '/' + formattedValue.slice(2, 4);
+        if (orderId && razorpayKeyId && typeof window !== 'undefined' && window.Razorpay) {
+          openedRazorpay = true;
+          const rzp = new window.Razorpay({
+            key: razorpayKeyId,
+            order_id: orderId,
+            name: 'WanderLeaf',
+            description: `Booking: ${property?.title ?? 'Property'}`,
+            prefill: { name: user?.name ?? undefined, email: user?.email ?? undefined },
+            handler: async (response: {
+              razorpay_payment_id: string;
+              razorpay_order_id: string;
+              razorpay_signature: string;
+            }) => {
+              setIsProcessing(true);
+              setPaymentError(null);
+              try {
+                await bookingsApi.verifyPayment(booking.id, {
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                });
+                setStep('confirmation');
+              } catch (err: unknown) {
+                setPaymentError(
+                  err instanceof Error ? err.message : 'Payment verification failed. Please contact support.'
+                );
+              } finally {
+                setIsProcessing(false);
+              }
+            },
+            modal: {
+              ondismiss: () => {
+                setIsProcessing(false);
+              },
+            },
+          });
+          rzp.open();
+        } else {
+          await bookingsApi.confirm(booking.id);
+          setStep('confirmation');
+        }
+      } catch (err: unknown) {
+        setPaymentError(err instanceof Error ? err.message : 'Booking failed. Please try again.');
+      } finally {
+        if (!openedRazorpay) setIsProcessing(false);
       }
-    }
-
-    if (name === 'cvv') {
-      formattedValue = value.replace(/\D/g, '').slice(0, 4);
-    }
-
-    setCardData((prev) => ({ ...prev, [name]: formattedValue }));
-  };
-
-  const handlePayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!propertyId || !checkIn || !checkOut) return;
-    setIsProcessing(true);
-    setPaymentError(null);
-    try {
-      const { booking } = await bookingsApi.create({
-        listing_id: propertyId,
-        check_in: checkIn,
-        check_out: checkOut,
-        num_guests: guestCount,
-      });
-      setCreatedBookingId(booking.id);
-      await bookingsApi.confirm(booking.id);
-      setStep('confirmation');
-    } catch (err: unknown) {
-      setPaymentError(err instanceof Error ? err.message : 'Booking failed. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+    },
+    [propertyId, checkIn, checkOut, guestCount, property?.title, user?.name, user?.email]
+  );
 
   const pageContent = loadingProperty ? (
     <div className="min-h-screen bg-background flex flex-col">
@@ -137,6 +183,10 @@ export default function CheckoutPage() {
     </div>
   ) : (
     <div className="min-h-screen bg-background flex flex-col">
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
+      />
       <Navbar />
 
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-12">
@@ -174,78 +224,9 @@ export default function CheckoutPage() {
                   <div className="card-elegant p-6 rounded-xl">
                     <h2 className="font-playfair text-2xl font-bold text-foreground mb-6">Payment Method</h2>
                     <form onSubmit={handlePayment} className="space-y-4">
-                      {/* Card Holder Name */}
-                      <div>
-                        <label className="block text-sm font-semibold text-foreground mb-2">
-                          Name on Card
-                        </label>
-                        <input
-                          type="text"
-                          name="cardName"
-                          placeholder="Jane Doe"
-                          value={cardData.cardName}
-                          onChange={handleCardChange}
-                          required
-                          className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground placeholder-muted-foreground"
-                        />
-                      </div>
-
-                      {/* Card Number */}
-                      <div>
-                        <label className="block text-sm font-semibold text-foreground mb-2">
-                          <div className="flex items-center gap-2">
-                            <CreditCard size={16} />
-                            Card Number
-                          </div>
-                        </label>
-                        <input
-                          type="text"
-                          name="cardNumber"
-                          placeholder="4242 4242 4242 4242"
-                          value={cardData.cardNumber}
-                          onChange={handleCardChange}
-                          maxLength="19"
-                          required
-                          className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground placeholder-muted-foreground font-mono"
-                        />
-                      </div>
-
-                      {/* Expiry and CVV */}
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-foreground mb-2">
-                            Expiry Date
-                          </label>
-                          <input
-                            type="text"
-                            name="expiryDate"
-                            placeholder="MM/YY"
-                            value={cardData.expiryDate}
-                            onChange={handleCardChange}
-                            maxLength="5"
-                            required
-                            className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground placeholder-muted-foreground font-mono"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-foreground mb-2">
-                            <div className="flex items-center gap-2">
-                              CVV
-                              <Lock size={14} className="text-muted-foreground" />
-                            </div>
-                          </label>
-                          <input
-                            type="text"
-                            name="cvv"
-                            placeholder="123"
-                            value={cardData.cvv}
-                            onChange={handleCardChange}
-                            maxLength="4"
-                            required
-                            className="w-full px-4 py-3 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary bg-background text-foreground placeholder-muted-foreground font-mono"
-                          />
-                        </div>
-                      </div>
+                      <p className="text-muted-foreground text-sm mb-4">
+                        You will be redirected to a secure payment page to complete your booking.
+                      </p>
 
                       {paymentError && (
                         <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
@@ -371,7 +352,7 @@ export default function CheckoutPage() {
                   {/* Security Badge */}
                   <div className="flex items-center justify-center gap-2 p-3 bg-green-50 rounded-lg text-sm text-green-700">
                     <Lock size={16} />
-                    Secure payment powered by Stripe
+                    Secure payment powered by Razorpay
                   </div>
                 </motion.div>
               </div>

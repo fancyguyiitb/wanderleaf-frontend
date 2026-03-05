@@ -460,6 +460,19 @@ export const bookingsApi = {
     });
   },
 
+  async verifyPayment(
+    bookingId: string,
+    payload: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }
+  ) {
+    return apiFetch<{ detail: string; booking: ApiBooking }>(
+      `/api/v1/bookings/${bookingId}/verify-payment/`,
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+  },
+
   async cancel(bookingId: string, reason?: string) {
     return apiFetch<{ detail: string; booking: ApiBookingDetail }>(
       `/api/v1/bookings/${bookingId}/cancel/`,
