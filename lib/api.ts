@@ -1,5 +1,19 @@
 import { useAuthStore, Property } from './store';
 
+/* ─── API Error (for status/code) ─── */
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public readonly status?: number,
+    public readonly code?: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+    Object.setPrototypeOf(this, ApiError.prototype);
+  }
+}
+
 /* ─── Base URL ─── */
 
 const getBaseUrl = () => {
@@ -95,7 +109,8 @@ export const apiFetch = async <TResponse>(
         (data as any)?.detail ||
         (data as any)?.message ||
         'Something went wrong while communicating with the server.';
-      throw new Error(message);
+      const code = (data as any)?.code;
+      throw new ApiError(message, response.status, code);
     }
 
     console.debug('[apiFetch] Success', { url, data });
@@ -394,6 +409,12 @@ export interface ApiBookingDetail {
   cancelled_at: string | null;
   created_at: string;
   updated_at: string;
+  payment_retry_disallowed?: boolean;
+  payment_deadline_seconds?: number;
+  refund_amount?: number | null;
+  refunded_at?: string | null;
+  refund_status?: string | null;
+  refund_failed?: boolean;
 }
 
 export interface ApiBooking {
@@ -454,12 +475,6 @@ export const bookingsApi = {
     return apiFetch<ApiBookingDetail>(`/api/v1/bookings/${id}/`);
   },
 
-  async confirm(bookingId: string) {
-    return apiFetch<{ detail: string; booking: ApiBooking }>(`/api/v1/bookings/${bookingId}/confirm/`, {
-      method: 'POST',
-    });
-  },
-
   async verifyPayment(
     bookingId: string,
     payload: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }
@@ -473,14 +488,27 @@ export const bookingsApi = {
     );
   },
 
+  async retryPayment(bookingId: string) {
+    return apiFetch<{
+      order_id: string;
+      razorpay_key_id: string;
+      amount: number;
+      currency: string;
+      payment_id: string;
+    }>(`/api/v1/bookings/${bookingId}/retry-payment/`, {
+      method: 'POST',
+    });
+  },
+
   async cancel(bookingId: string, reason?: string) {
-    return apiFetch<{ detail: string; booking: ApiBookingDetail }>(
-      `/api/v1/bookings/${bookingId}/cancel/`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ reason: reason ?? '' }),
-      }
-    );
+    return apiFetch<{
+      detail: string;
+      booking: ApiBookingDetail;
+      refund_code?: 'refund_initiated' | 'refund_failed' | 'no_refund_needed';
+    }>(`/api/v1/bookings/${bookingId}/cancel/`, {
+      method: 'POST',
+      body: JSON.stringify({ reason: reason ?? '' }),
+    });
   },
 };
 
