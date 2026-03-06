@@ -25,11 +25,14 @@ interface BookingWidgetProps {
 export default function BookingWidget({ property }: BookingWidgetProps) {
   const router = useRouter();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = useAuthStore((s) => s.user);
 
   const [range, setRange] = useState<{ from?: Date; to?: Date } | undefined>();
   const [guests, setGuests] = useState(1);
   const [showGuestDropdown, setShowGuestDropdown] = useState(false);
   const [dateError, setDateError] = useState<string | null>(null);
+
+  const isOwner = Boolean(user && String(user.id) === String(property.host.id));
 
   const bookedRanges: BookedRange[] = property.bookedDates ?? [];
   const disabledDateStrings = getDisabledDates(bookedRanges);
@@ -72,6 +75,10 @@ export default function BookingWidget({ property }: BookingWidgetProps) {
   };
 
   const handleBooking = () => {
+    if (isOwner) {
+      alert('You cannot book your own property.');
+      return;
+    }
     if (!checkIn || !checkOut || checkOut <= checkIn) {
       alert('Please select check-in and check-out dates');
       return;
@@ -196,11 +203,17 @@ export default function BookingWidget({ property }: BookingWidgetProps) {
       {/* Reserve Button */}
       <Button
         onClick={handleBooking}
-        disabled={!checkIn || !checkOut || checkOut <= checkIn || !!dateError}
+        disabled={isOwner || !checkIn || !checkOut || checkOut <= checkIn || !!dateError}
         className="w-full py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mb-6"
       >
-        Reserve
+        {isOwner ? 'You own this property' : 'Reserve'}
       </Button>
+
+      {isOwner && (
+        <p className="text-sm text-muted-foreground mb-6">
+          Hosts cannot book their own properties.
+        </p>
+      )}
 
       {/* Price Breakdown */}
       {priceBreakdown && (

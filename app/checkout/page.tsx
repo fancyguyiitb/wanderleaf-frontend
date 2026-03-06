@@ -150,6 +150,10 @@ export default function CheckoutPage() {
       .finally(() => setLoadingProperty(false));
   }, [propertyId]);
 
+  const isOwnerBookingOwnProperty = Boolean(
+    user && property && String(user.id) === String(property.host.id)
+  );
+
   const checkIn = searchParams.get('checkIn') || '';
   const checkOut = searchParams.get('checkOut') || '';
   const guestCount = Number(searchParams.get('guests')) || 2;
@@ -187,6 +191,12 @@ export default function CheckoutPage() {
     async (e: React.FormEvent) => {
       e.preventDefault();
       if (!propertyId || !checkIn || !checkOut) return;
+      if (isOwnerBookingOwnProperty) {
+        setStep('error');
+        setErrorType('booking_failed');
+        setErrorMessage('You cannot book your own property.');
+        return;
+      }
       setIsProcessing(true);
       setErrorType(null);
       setErrorMessage(null);
@@ -271,7 +281,7 @@ export default function CheckoutPage() {
         if (!openedRazorpay) setIsProcessing(false);
       }
     },
-    [propertyId, checkIn, checkOut, guestCount, property?.title, user?.name, user?.email]
+    [propertyId, checkIn, checkOut, guestCount, isOwnerBookingOwnProperty, property?.title, user?.name, user?.email]
   );
 
   const pageContent = loadingProperty ? (
@@ -292,6 +302,17 @@ export default function CheckoutPage() {
         <h1 className="text-2xl font-bold text-foreground mb-4">Booking Not Found</h1>
         <p className="text-muted-foreground mb-6">The property for this booking could not be loaded.</p>
         <a href="/" className="text-primary hover:underline font-medium">Back to Home</a>
+      </main>
+      <Footer />
+    </div>
+  ) : isOwnerBookingOwnProperty ? (
+    <div className="min-h-screen bg-background flex flex-col">
+      <Navbar />
+      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-12">
+        <ErrorScreen
+          type="booking_failed"
+          message="You cannot book your own property."
+        />
       </main>
       <Footer />
     </div>
