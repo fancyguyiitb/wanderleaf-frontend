@@ -147,7 +147,7 @@ export default function HostPropertyBookingsPage() {
                   <div className="flex items-end sm:items-center gap-3 sm:flex-col sm:items-end flex-1 sm:flex-none justify-between sm:justify-end">
                     <div className="text-right">
                       <p className="text-xs text-muted-foreground mb-1">Total</p>
-                      <p className="text-lg font-semibold text-primary">${booking.total_price}</p>
+                      <p className="text-lg font-semibold text-primary">₹{booking.total_price}</p>
                     </div>
                     <div className="inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full bg-muted text-muted-foreground">
                       <span className="font-medium capitalize">{booking.status_display}</span>

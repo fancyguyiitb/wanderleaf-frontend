@@ -490,7 +490,7 @@ export default function DashboardPage() {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-muted-foreground text-sm">Total Paid</p>
-                              <p className="text-2xl font-bold text-primary">${booking.totalPrice}</p>
+                              <p className="text-2xl font-bold text-primary">₹{booking.totalPrice}</p>
                             </div>
                             <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(booking.status)}`}>
                               {getStatusText(booking.status)}
@@ -576,7 +576,7 @@ export default function DashboardPage() {
                             <p className="text-foreground font-medium">{booking.property.title}</p>
                             <p className="text-sm text-muted-foreground">{formatDate(booking.checkIn)}</p>
                           </div>
-                          <p className="font-semibold text-foreground">${booking.totalPrice}</p>
+                          <p className="font-semibold text-foreground">₹{booking.totalPrice}</p>
                         </motion.div>
                       ))}
                     </div>
@@ -644,7 +644,7 @@ function DashboardPropertyCard({
           </span>
         </div>
         <div className="absolute bottom-3 left-3 bg-foreground/90 backdrop-blur-sm text-primary-foreground px-3 py-1 rounded-full">
-          <span className="font-semibold">${property.price}</span>
+          <span className="font-semibold">₹{property.price}</span>
           <span className="text-xs opacity-90">/night</span>
         </div>
         <div className="absolute top-3 right-3" onClick={(e) => e.stopPropagation()}>

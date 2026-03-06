@@ -352,7 +352,7 @@ function HostPropertyCard({
 
         {/* Price Badge */}
         <div className="absolute bottom-3 left-3 bg-foreground/90 backdrop-blur-sm text-primary-foreground px-3 py-1 rounded-full">
-          <span className="font-semibold">${property.price}</span>
+          <span className="font-semibold">₹{property.price}</span>
           <span className="text-xs opacity-90">/night</span>
         </div>
 

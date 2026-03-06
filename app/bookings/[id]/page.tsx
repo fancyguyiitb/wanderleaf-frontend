@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import Script from 'next/script';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/navbar';
@@ -16,6 +17,9 @@ import {
   ExternalLink,
   Home,
   XCircle,
+  CreditCard,
+  AlertCircle,
+  Clock,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { bookingsApi, type ApiBookingDetail } from '@/lib/api';
@@ -46,6 +50,26 @@ const getStatusColor = (status: string) => {
   }
 };
 
+const formatCountdown = (seconds: number) => {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+};
+
+declare global {
+  interface Window {
+    Razorpay?: new (opts: {
+      key: string;
+      order_id: string;
+      name?: string;
+      description?: string;
+      prefill?: { name?: string; email?: string };
+      handler: (r: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => void;
+      modal?: { ondismiss?: () => void };
+    }) => { open: () => void };
+  }
+}
+
 export default function BookingDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -58,6 +82,15 @@ export default function BookingDetailPage() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [isRetryingPayment, setIsRetryingPayment] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+  const [isAutoCancelling, setIsAutoCancelling] = useState(false);
+
+  const refetchBooking = useCallback(() => {
+    if (!bookingId) return;
+    bookingsApi.getById(bookingId).then(setBooking);
+  }, [bookingId]);
 
   const isHost = booking && user && String(user.id) === String(booking.host.id);
   const isCancelled = booking && (booking.status === 'cancelled_by_guest' || booking.status === 'cancelled_by_host');
@@ -92,6 +125,89 @@ export default function BookingDetailPage() {
       .finally(() => setIsLoading(false));
   }, [bookingId]);
 
+  const isPendingPayment = booking?.status === 'pending_payment';
+  const isGuest = booking && user && String(user.id) === String(booking.guest.id);
+  const retryAllowed = isPendingPayment && isGuest && !booking?.payment_retry_disallowed;
+
+  useEffect(() => {
+    if (!retryAllowed || !booking) {
+      setSecondsLeft(null);
+      return;
+    }
+    const deadlineSeconds = booking.payment_deadline_seconds ?? 0;
+    if (deadlineSeconds <= 0) {
+      setSecondsLeft(0);
+      return;
+    }
+    // Non-overridable: derive remaining time from backend-provided seconds.
+    // Reloading cannot extend it (backend recomputes remaining).
+    const deadline = Date.now() + deadlineSeconds * 1000;
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(iv);
+        // Auto-cancel if payment was not completed within the window.
+        if (!isAutoCancelling) {
+          setIsAutoCancelling(true);
+          bookingsApi
+            .cancel(booking.id, 'Payment window expired (15 minutes).')
+            .then((res) => setBooking(res.booking))
+            .catch(() => refetchBooking())
+            .finally(() => setIsAutoCancelling(false));
+        } else {
+          refetchBooking();
+        }
+      }
+    };
+    tick();
+    const iv = setInterval(tick, 1000);
+    return () => clearInterval(iv);
+  }, [retryAllowed, booking?.id, booking?.payment_deadline_seconds, refetchBooking, isAutoCancelling]);
+
+  const handleRetryPayment = async () => {
+    if (!booking?.id || !retryAllowed || secondsLeft !== null && secondsLeft <= 0 || isRetryingPayment) return;
+    setIsRetryingPayment(true);
+    setRetryError(null);
+    try {
+      const payment = await bookingsApi.retryPayment(booking.id);
+      const orderId = payment.order_id;
+      const razorpayKeyId = payment.razorpay_key_id;
+      if (typeof window !== 'undefined' && window.Razorpay && orderId && razorpayKeyId) {
+        const rzp = new window.Razorpay({
+          key: razorpayKeyId,
+          order_id: orderId,
+          name: 'WanderLeaf',
+          description: `Booking: ${booking.listing.title}`,
+          prefill: { name: user?.name ?? undefined, email: user?.email ?? undefined },
+          handler: async (res) => {
+            try {
+              await bookingsApi.verifyPayment(booking.id, {
+                razorpay_order_id: res.razorpay_order_id,
+                razorpay_payment_id: res.razorpay_payment_id,
+                razorpay_signature: res.razorpay_signature,
+              });
+              refetchBooking();
+            } catch (e) {
+              setRetryError(e instanceof Error ? e.message : 'Payment verification failed.');
+              refetchBooking();
+            } finally {
+              setIsRetryingPayment(false);
+            }
+          },
+          modal: { ondismiss: () => setIsRetryingPayment(false) },
+        });
+        rzp.open();
+      } else {
+        setRetryError('Payment gateway is not available.');
+      }
+    } catch (err) {
+      setRetryError(err instanceof Error ? err.message : 'Failed to start payment.');
+    } finally {
+      if (!(typeof window !== 'undefined' && window.Razorpay)) setIsRetryingPayment(false);
+    }
+  };
+
   const pageContent = isLoading ? (
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
@@ -122,6 +238,7 @@ export default function BookingDetailPage() {
     </div>
   ) : (
     <div className="min-h-screen bg-background flex flex-col">
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
       <Navbar />
 
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8">
@@ -278,24 +395,129 @@ export default function BookingDetailPage() {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">
-                    ${booking.price_per_night} × {booking.num_nights} nights
+                    ₹{booking.price_per_night} × {booking.num_nights} nights
                   </span>
-                  <span className="text-foreground font-medium">${booking.subtotal}</span>
+                  <span className="text-foreground font-medium">₹{booking.subtotal}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Service fee</span>
-                  <span className="text-foreground font-medium">${booking.service_fee}</span>
+                  <span className="text-foreground font-medium">₹{booking.service_fee}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Cleaning fee</span>
-                  <span className="text-foreground font-medium">${booking.cleaning_fee}</span>
+                  <span className="text-foreground font-medium">₹{booking.cleaning_fee}</span>
                 </div>
                 <div className="flex justify-between text-lg font-bold pt-3 border-t border-border">
                   <span>Total</span>
-                  <span className="text-primary">${booking.total_price}</span>
+                  <span className="text-primary">₹{booking.total_price}</span>
                 </div>
               </div>
+              {/* Refund info for cancelled bookings */}
+              {isCancelled && (booking.refund_amount != null && booking.refund_amount > 0) && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <div className="flex items-center gap-2 text-green-700 dark:text-green-400">
+                    <CreditCard size={16} />
+                    <span className="text-sm font-medium">
+                      Refund of ₹{booking.refund_amount} initiated
+                      {booking.refunded_at && (
+                        <span className="text-muted-foreground font-normal">
+                          {' '}on {formatDate(booking.refunded_at)}. Will reflect in 5–7 working days.
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {isCancelled && booking.refund_failed && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                    <AlertCircle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-sm text-amber-800 dark:text-amber-200">
+                      <p className="font-medium">Refund could not be processed automatically</p>
+                      <p className="mt-0.5 text-amber-700 dark:text-amber-300">
+                        Please contact support with booking ID: <span className="font-mono font-semibold">{booking.id.slice(0, 8).toUpperCase()}</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </motion.div>
+
+            {/* Pending payment: retry or contact support */}
+            {!isHost && isPendingPayment && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.28 }}
+                className="card-elegant p-6 rounded-xl"
+              >
+                <h3 className="font-semibold text-foreground mb-4">Complete payment</h3>
+                {booking.payment_retry_disallowed ? (
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                      <AlertCircle size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-amber-800 dark:text-amber-200">
+                          Payment verification failed
+                        </p>
+                        {retryError && (
+                          <p className="text-sm text-amber-700 dark:text-amber-300 mt-1 font-medium">
+                            What happened: {retryError}
+                          </p>
+                        )}
+                        <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                          Your payment may have been processed. Do not retry as you could be charged twice.
+                        </p>
+                        <p className="text-sm text-amber-700 dark:text-amber-300 mt-2">
+                          Please contact support with your booking ID: <span className="font-mono font-semibold">{booking.id.slice(0, 8).toUpperCase()}</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : secondsLeft !== null && secondsLeft <= 0 ? (
+                  <div className="space-y-2">
+                    <p className="text-sm text-muted-foreground">
+                      Payment window expired. This booking has been cancelled and dates freed.
+                    </p>
+                    <button
+                      onClick={refetchBooking}
+                      className="text-sm text-primary hover:underline font-medium"
+                    >
+                      Refresh to see updated status
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                      <Clock size={18} />
+                      <span className="font-medium">
+                        {secondsLeft !== null && secondsLeft > 0
+                          ? `${formatCountdown(secondsLeft)} left to pay`
+                          : 'Payment pending'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Complete payment within 15 minutes or this booking will be automatically cancelled.
+                    </p>
+                    {retryError && (
+                      <p className="text-sm text-destructive">{retryError}</p>
+                    )}
+                    <button
+                      onClick={handleRetryPayment}
+                      disabled={isRetryingPayment || (secondsLeft !== null && secondsLeft <= 0)}
+                      className="w-full py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    >
+                      {isRetryingPayment ? (
+                        <Loader2 size={20} className="animate-spin" />
+                      ) : (
+                        <CreditCard size={20} />
+                      )}
+                      {isRetryingPayment ? 'Opening payment...' : 'Retry payment'}
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            )}
 
             {/* Host (only for guests) or Guest (for hosts) */}
             {!isHost && (

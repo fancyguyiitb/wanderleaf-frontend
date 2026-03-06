@@ -53,7 +53,7 @@ export default function BookingWidget({ property }: BookingWidgetProps) {
           checkIn,
           checkOut,
           property.serviceFeePercent ?? 12,
-          property.cleaningFee ?? 25
+          property.cleaningFee ?? 250
         )
       : null;
 
@@ -110,7 +110,7 @@ export default function BookingWidget({ property }: BookingWidgetProps) {
     >
       {/* Price Header */}
       <div className="flex items-baseline gap-2 mb-6 pb-6 border-b border-border">
-        <span className="text-3xl font-bold text-foreground">${property.price}</span>
+        <span className="text-3xl font-bold text-foreground">₹{property.price}</span>
         <span className="text-muted-foreground">per night</span>
       </div>
 
@@ -211,21 +211,21 @@ export default function BookingWidget({ property }: BookingWidgetProps) {
         >
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">
-              ${property.price} × {priceBreakdown.numNights} {priceBreakdown.numNights === 1 ? 'night' : 'nights'}
+              ₹{property.price} × {priceBreakdown.numNights} {priceBreakdown.numNights === 1 ? 'night' : 'nights'}
             </span>
-            <span className="text-foreground font-medium">${priceBreakdown.subtotal}</span>
+            <span className="text-foreground font-medium">₹{priceBreakdown.subtotal}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Service fee</span>
-            <span className="text-foreground font-medium">${priceBreakdown.serviceFee}</span>
+            <span className="text-foreground font-medium">₹{priceBreakdown.serviceFee}</span>
           </div>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Cleaning fee</span>
-            <span className="text-foreground font-medium">${priceBreakdown.cleaningFee}</span>
+            <span className="text-foreground font-medium">₹{priceBreakdown.cleaningFee}</span>
           </div>
           <div className="flex justify-between text-base font-semibold pt-3 border-t border-border">
             <span>Total</span>
-            <span>${priceBreakdown.total}</span>
+            <span>₹{priceBreakdown.total}</span>
           </div>
         </motion.div>
       )}

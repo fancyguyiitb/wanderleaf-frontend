@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select';
 import {
   MapPin,
-  DollarSign,
+  IndianRupee,
   BedDouble,
   Bath,
   Users,
@@ -366,7 +366,7 @@ export default function EditPropertyPage() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="space-y-2">
                 <Label>
-                  <span className="flex items-center gap-1.5"><DollarSign size={14} className="text-muted-foreground" />Price / Night</span>
+                  <span className="flex items-center gap-1.5"><IndianRupee size={14} className="text-muted-foreground" />Price / Night (INR)</span>
                 </Label>
                 <Input
                   type="number"

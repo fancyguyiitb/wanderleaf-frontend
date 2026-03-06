@@ -1,3 +1,5 @@
+export const CURRENCY_SYMBOL = '₹';
+
 export const categories = [
   { id: 'mountain_retreats', name: 'Mountain Retreats', icon: '⛰️' },
   { id: 'beach_houses', name: 'Beach Houses', icon: '🏖️' },

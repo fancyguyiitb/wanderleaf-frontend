@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/select';
 import {
   MapPin,
-  DollarSign,
+  IndianRupee,
   BedDouble,
   Bath,
   Users,
@@ -423,8 +423,8 @@ export default function CreatePropertyForm({
                 <div className="space-y-2">
                   <Label htmlFor="price" className="text-sm font-medium text-foreground">
                     <span className="flex items-center gap-1.5">
-                      <DollarSign size={14} className="text-muted-foreground" />
-                      Price per Night (USD)
+                      <IndianRupee size={14} className="text-muted-foreground" />
+                      Price per Night (INR)
                     </span>
                   </Label>
                   <Input
@@ -527,7 +527,7 @@ export default function CreatePropertyForm({
                   </p>
                   {formData.price && (
                     <p className="text-primary font-semibold mt-2">
-                      ${formData.price}
+                      ₹{formData.price}
                       <span className="text-muted-foreground font-normal text-sm"> /night</span>
                     </p>
                   )}
@@ -705,7 +705,7 @@ export default function CreatePropertyForm({
                     <span>&bull;</span>
                     <span>{formData.guests} guests</span>
                     <span>&bull;</span>
-                    <span className="text-primary font-semibold">${formData.price}/night</span>
+                    <span className="text-primary font-semibold">₹{formData.price}/night</span>
                   </div>
                   <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                     <ImagePlus size={12} />

@@ -63,7 +63,7 @@ export default function HostHeroSection({ onCreateProperty, listingCount }: Host
                 <TrendingUp size={20} className="text-accent" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">$0</p>
+                <p className="text-2xl font-bold text-foreground">₹0</p>
                 <p className="text-xs text-muted-foreground">Total Earned</p>
               </div>
             </div>

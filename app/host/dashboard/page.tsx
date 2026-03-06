@@ -5,7 +5,7 @@ import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import RequireAuth from '@/components/require-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BarChart3, Users, DollarSign, Calendar, PlusCircle, Edit2, Trash2, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { BarChart3, Users, IndianRupee, Calendar, PlusCircle, Edit2, Trash2, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { listingsApi } from '@/lib/api';
 import { Property } from '@/lib/store';
@@ -88,9 +88,9 @@ export default function HostDashboardPage() {
         >
           {[
             {
-              icon: DollarSign,
+              icon: IndianRupee,
               label: 'Total Earnings',
-              value: `$${analytics.totalEarnings}`,
+              value: `₹${analytics.totalEarnings}`,
               color: 'text-green-600',
               bgColor: 'bg-green-50',
             },
@@ -309,7 +309,7 @@ export default function HostDashboardPage() {
                         </div>
                         <div className="text-center">
                           <p className="text-muted-foreground text-xs">Price/Night</p>
-                          <p className="font-semibold text-primary">${property.price}</p>
+                          <p className="font-semibold text-primary">₹{property.price}</p>
                         </div>
                       </div>
 
