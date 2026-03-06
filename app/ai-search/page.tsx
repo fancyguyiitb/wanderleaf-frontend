@@ -22,7 +22,7 @@ export default function AISearchPage() {
   const [currentResults, setCurrentResults] = useState<SearchResult | null>(null);
 
   const suggestions = [
-    'A cozy cabin near mountains for 4 people under $150 per night',
+    'A cozy cabin near mountains for 4 people under ₹5,000 per night',
     'Beachfront villa with pool in tropical location',
     'Luxury alpine chalet with skiing access',
     'Eco-friendly forest retreat with WiFi',
@@ -69,7 +69,7 @@ export default function AISearchPage() {
       if (isBeach) tags.push('Beach');
       if (isLuxury) tags.push('Luxury');
       if (keywords.includes('4 people') || keywords.includes('family')) tags.push('Family-Friendly');
-      if (keywords.includes('$150')) tags.push('Budget-Friendly');
+      if (keywords.includes('₹5,000') || keywords.includes('5000')) tags.push('Budget-Friendly');
 
       const result: SearchResult = {
         query: searchQuery,
@@ -135,7 +135,7 @@ export default function AISearchPage() {
                 <Sparkles className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" size={20} />
                 <input
                   type="text"
-                  placeholder="Describe your ideal stay... (e.g., 'A cozy cabin near mountains for 4 people under $150 per night')"
+                  placeholder="Describe your ideal stay... (e.g., 'A cozy cabin near mountains for 4 people under ₹5,000 per night')"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   disabled={isLoading}
