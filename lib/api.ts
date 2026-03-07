@@ -469,6 +469,13 @@ export interface ApiConversation {
   updated_at: string;
 }
 
+export interface ApiChatNotification {
+  booking_id: string;
+  conversation_id: string;
+  booking_title: string;
+  message: ApiChatMessage;
+}
+
 export interface ApiAttachmentUpload {
   attachment_url: string;
   attachment_name: string;
@@ -583,6 +590,14 @@ export const messagingApi = {
       throw new Error('Missing authentication token for chat connection.');
     }
     return `${getWebSocketBaseUrl()}/ws/messaging/conversations/${conversationId}/?token=${encodeURIComponent(token)}`;
+  },
+
+  getNotificationsWebSocketUrl() {
+    const token = useAuthStore.getState().accessToken;
+    if (!token) {
+      throw new Error('Missing authentication token for chat connection.');
+    }
+    return `${getWebSocketBaseUrl()}/ws/messaging/notifications/?token=${encodeURIComponent(token)}`;
   },
 };
 
