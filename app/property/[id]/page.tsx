@@ -57,7 +57,9 @@ export default function PropertyDetailPage() {
       .then((response) => {
         const bookings = Array.isArray(response) ? response : response.results;
         const userHasBookingForProperty = bookings.some(
-          (booking) => String(booking.listing.id) === String(property.id)
+          (booking) =>
+            String(booking.listing.id) === String(property.id) &&
+            (booking.status === 'pending_payment' || booking.status === 'confirmed')
         );
 
         if (!cancelled) {
@@ -335,9 +337,9 @@ export default function PropertyDetailPage() {
                     Experienced host with a passion for providing exceptional stays. Known for responsive communication and beautiful properties.
                   </p>
                   {hasBookedProperty && (
-                    <button className="mt-4 px-6 py-2 border border-primary text-primary rounded-lg font-medium hover:bg-primary/10 transition-colors">
-                      Contact Host
-                    </button>
+                    <p className="mt-4 text-sm text-muted-foreground">
+                      Contact is available from your active booking details page.
+                    </p>
                   )}
                 </div>
               </div>

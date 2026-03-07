@@ -8,6 +8,7 @@ import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import RequireAuth from '@/components/require-auth';
 import CancelBookingDialog from '@/components/cancel-booking-dialog';
+import ChatSheet from '@/components/chat/chat-sheet';
 import {
   ArrowLeft,
   MapPin,
@@ -86,6 +87,7 @@ export default function BookingDetailPage() {
   const [isRetryingPayment, setIsRetryingPayment] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
   const [isAutoCancelling, setIsAutoCancelling] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const refetchBooking = useCallback(() => {
     if (!bookingId) return;
@@ -128,6 +130,13 @@ export default function BookingDetailPage() {
   const isPendingPayment = booking?.status === 'pending_payment';
   const isGuest = booking && user && String(user.id) === String(booking.guest.id);
   const retryAllowed = isPendingPayment && isGuest && !booking?.payment_retry_disallowed;
+  const isChatAvailable = booking?.status === 'pending_payment' || booking?.status === 'confirmed';
+
+  useEffect(() => {
+    if (!isChatAvailable) {
+      setIsChatOpen(false);
+    }
+  }, [isChatAvailable]);
 
   useEffect(() => {
     if (!retryAllowed || !booking) {
@@ -539,12 +548,14 @@ export default function BookingDetailPage() {
                     <p className="text-sm text-muted-foreground">{booking.host.email}</p>
                   </div>
                 </div>
-                <button
-                  disabled={isCancelled}
-                  className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary text-primary font-medium hover:bg-primary/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:border-muted disabled:text-muted-foreground"
-                >
-                  {isCancelled ? 'Contact Owner (booking cancelled)' : 'Contact Owner'}
-                </button>
+                {isChatAvailable && (
+                  <button
+                    onClick={() => setIsChatOpen(true)}
+                    className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary text-primary font-medium hover:bg-primary/5 transition-colors"
+                  >
+                    Contact Owner
+                  </button>
+                )}
               </motion.div>
             )}
 
@@ -568,12 +579,14 @@ export default function BookingDetailPage() {
                     <p className="text-sm text-muted-foreground">{booking.guest.email}</p>
                   </div>
                 </div>
-                <button
-                  disabled={isCancelled}
-                  className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary text-primary font-medium hover:bg-primary/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:border-muted disabled:text-muted-foreground"
-                >
-                  {isCancelled ? 'Contact Customer (booking cancelled)' : 'Contact Customer'}
-                </button>
+                {isChatAvailable && (
+                  <button
+                    onClick={() => setIsChatOpen(true)}
+                    className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary text-primary font-medium hover:bg-primary/5 transition-colors"
+                  >
+                    Contact Customer
+                  </button>
+                )}
               </motion.div>
             )}
 
@@ -673,6 +686,15 @@ export default function BookingDetailPage() {
       </main>
 
       <Footer />
+      {booking && user && isChatAvailable && (
+        <ChatSheet
+          open={isChatOpen}
+          onOpenChange={setIsChatOpen}
+          booking={booking}
+          currentUserId={String(user.id)}
+          isHost={Boolean(isHost)}
+        />
+      )}
     </div>
   );
 
