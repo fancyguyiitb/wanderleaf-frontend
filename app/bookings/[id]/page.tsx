@@ -141,13 +141,14 @@ export default function BookingDetailPage() {
   }, [bookingId, router]);
 
   useEffect(() => {
+    if (!booking) return;
     if (!isChatAvailable) {
       setIsChatOpen(false);
       if (chatRequestedFromUrl) {
         syncChatQuery(false);
       }
     }
-  }, [chatRequestedFromUrl, isChatAvailable, syncChatQuery]);
+  }, [booking, chatRequestedFromUrl, isChatAvailable, syncChatQuery]);
 
   useEffect(() => {
     if (isChatAvailable && chatRequestedFromUrl) {
