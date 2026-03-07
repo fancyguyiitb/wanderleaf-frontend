@@ -476,6 +476,21 @@ export interface ApiChatNotification {
   message: ApiChatMessage;
 }
 
+export interface ApiInboxItem {
+  id: string;
+  booking_id: string;
+  booking_title: string;
+  is_chat_available: boolean;
+  other_participant: ApiChatUser;
+  last_message: string;
+  last_message_at: string | null;
+  unread_count: number;
+}
+
+export interface ApiUnreadCountResponse {
+  total: number;
+}
+
 export interface ApiAttachmentUpload {
   attachment_url: string;
   attachment_name: string;
@@ -571,6 +586,14 @@ const getWebSocketBaseUrl = () => {
 };
 
 export const messagingApi = {
+  async listInbox() {
+    return apiFetch<ApiInboxItem[]>('/api/v1/messaging/inbox/');
+  },
+
+  async getUnreadCount() {
+    return apiFetch<ApiUnreadCountResponse>('/api/v1/messaging/unread-count/');
+  },
+
   async getConversationForBooking(bookingId: string) {
     return apiFetch<ApiConversation>(`/api/v1/messaging/bookings/${bookingId}/conversation/`);
   },

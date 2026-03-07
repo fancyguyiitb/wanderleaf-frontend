@@ -67,6 +67,7 @@ export default function GlobalChatNotifications() {
             onClick: () => router.push(`/bookings/${bookingId}?chat=open`),
           },
         });
+        window.dispatchEvent(new CustomEvent('inbox-update'));
       } catch {
         // Ignore malformed websocket payloads here; booking-local chat handles explicit errors.
       }
