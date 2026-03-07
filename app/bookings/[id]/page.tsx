@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import Script from 'next/script';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
@@ -74,6 +74,7 @@ declare global {
 export default function BookingDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const bookingId = params.id as string;
 
   const user = useAuthStore((s) => s.user);
@@ -131,12 +132,31 @@ export default function BookingDetailPage() {
   const isGuest = booking && user && String(user.id) === String(booking.guest.id);
   const retryAllowed = isPendingPayment && isGuest && !booking?.payment_retry_disallowed;
   const isChatAvailable = booking?.status === 'pending_payment' || booking?.status === 'confirmed';
+  const chatRequestedFromUrl = searchParams.get('chat') === 'open';
+
+  const syncChatQuery = useCallback((nextOpen: boolean) => {
+    if (!bookingId) return;
+    const nextUrl = nextOpen ? `/bookings/${bookingId}?chat=open` : `/bookings/${bookingId}`;
+    router.replace(nextUrl, { scroll: false });
+  }, [bookingId, router]);
 
   useEffect(() => {
     if (!isChatAvailable) {
       setIsChatOpen(false);
+      if (chatRequestedFromUrl) {
+        syncChatQuery(false);
+      }
     }
-  }, [isChatAvailable]);
+  }, [chatRequestedFromUrl, isChatAvailable, syncChatQuery]);
+
+  useEffect(() => {
+    if (isChatAvailable && chatRequestedFromUrl) {
+      setIsChatOpen(true);
+    }
+    if (!chatRequestedFromUrl) {
+      setIsChatOpen(false);
+    }
+  }, [chatRequestedFromUrl, isChatAvailable]);
 
   useEffect(() => {
     if (!retryAllowed || !booking) {
@@ -550,7 +570,10 @@ export default function BookingDetailPage() {
                 </div>
                 {isChatAvailable && (
                   <button
-                    onClick={() => setIsChatOpen(true)}
+                    onClick={() => {
+                      setIsChatOpen(true);
+                      syncChatQuery(true);
+                    }}
                     className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary text-primary font-medium hover:bg-primary/5 transition-colors"
                   >
                     Contact Owner
@@ -581,7 +604,10 @@ export default function BookingDetailPage() {
                 </div>
                 {isChatAvailable && (
                   <button
-                    onClick={() => setIsChatOpen(true)}
+                    onClick={() => {
+                      setIsChatOpen(true);
+                      syncChatQuery(true);
+                    }}
                     className="mt-4 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-primary text-primary font-medium hover:bg-primary/5 transition-colors"
                   >
                     Contact Customer
@@ -689,7 +715,10 @@ export default function BookingDetailPage() {
       {booking && user && isChatAvailable && (
         <ChatSheet
           open={isChatOpen}
-          onOpenChange={setIsChatOpen}
+          onOpenChange={(nextOpen) => {
+            setIsChatOpen(nextOpen);
+            syncChatQuery(nextOpen);
+          }}
           booking={booking}
           currentUserId={String(user.id)}
           isHost={Boolean(isHost)}

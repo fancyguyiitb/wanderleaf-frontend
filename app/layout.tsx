@@ -3,7 +3,10 @@ import { Geist, Geist_Mono } from 'next/font/google'
 
 import './globals.css'
 import AuthHydrator from '@/components/auth-hydrator'
+import { ThemeProvider } from '@/components/theme-provider'
 import WishlistHydrator from '@/components/wishlist-hydrator'
+import GlobalChatNotifications from '@/components/global-chat-notifications'
+import { Toaster } from '@/components/ui/sonner'
 
 const _geist = Geist({ subsets: ['latin'] })
 const _geistMono = Geist_Mono({ subsets: ['latin'] })
@@ -29,9 +32,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        <AuthHydrator />
-        <WishlistHydrator />
-        {children}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <AuthHydrator />
+          <WishlistHydrator />
+          <GlobalChatNotifications />
+          {children}
+          <Toaster position="top-right" richColors />
+        </ThemeProvider>
       </body>
     </html>
   )
