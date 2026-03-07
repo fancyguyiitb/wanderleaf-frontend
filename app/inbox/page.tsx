@@ -33,25 +33,31 @@ export default function InboxPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchInbox = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
+  const fetchInbox = useCallback(async (silent = false) => {
+    if (!silent) {
+      setIsLoading(true);
+      setError(null);
+    }
     try {
       const list = await messagingApi.listInbox();
       setItems(list);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load inbox.');
+      if (!silent) {
+        setError(err instanceof Error ? err.message : 'Failed to load inbox.');
+      }
     } finally {
-      setIsLoading(false);
+      if (!silent) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
-    fetchInbox();
+    fetchInbox(false);
   }, [fetchInbox]);
 
   useEffect(() => {
-    const handler = () => fetchInbox();
+    const handler = () => fetchInbox(true);
     window.addEventListener('inbox-update', handler);
     return () => window.removeEventListener('inbox-update', handler);
   }, [fetchInbox]);

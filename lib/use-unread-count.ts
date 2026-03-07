@@ -29,7 +29,10 @@ export function useUnreadCount() {
 
   useEffect(() => {
     if (!authReady || !isAuthenticated) return;
-    const handler = () => fetchCount();
+    const handler = () => {
+      setTotal((prev) => prev + 1);
+      fetchCount();
+    };
     window.addEventListener('inbox-update', handler);
     return () => window.removeEventListener('inbox-update', handler);
   }, [authReady, isAuthenticated, fetchCount]);

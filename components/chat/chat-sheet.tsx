@@ -88,9 +88,15 @@ export default function ChatSheet({
     bootstrapConversation();
   }, [bootstrapConversation, open]);
 
-  const handleSocketMessage = useCallback((message: ApiChatMessage) => {
-    setMessages((previous) => upsertMessage(previous, message));
-  }, []);
+  const handleSocketMessage = useCallback(
+    (message: ApiChatMessage) => {
+      setMessages((previous) => upsertMessage(previous, message));
+      if (String(message.sender.id) !== String(currentUserId)) {
+        window.dispatchEvent(new CustomEvent('inbox-update'));
+      }
+    },
+    [currentUserId]
+  );
 
   const handleSocketError = useCallback((message: string) => {
     setError(message);
