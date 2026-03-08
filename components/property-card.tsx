@@ -104,13 +104,19 @@ export default function PropertyCard({ property, index = 0 }: PropertyCardProps)
               <span>{property.bedrooms} bed • {property.bathrooms} bath</span>
             </div>
 
-            {/* Rating */}
+            {/* Rating & Review count */}
             <div className="flex items-center gap-1">
-              <div className="flex items-center gap-1">
-                <Star size={16} className="fill-accent text-accent" />
-                <span className="font-semibold text-foreground">{property.rating}</span>
-              </div>
-              <span className="text-xs text-muted-foreground">({property.reviews} reviews)</span>
+              {property.reviews > 0 ? (
+                <>
+                  <Star size={16} className="fill-accent text-accent" />
+                  <span className="font-semibold text-foreground">{property.rating}</span>
+                  <span className="text-xs text-muted-foreground">
+                    ({property.reviews} {property.reviews === 1 ? 'review' : 'reviews'})
+                  </span>
+                </>
+              ) : (
+                <span className="text-sm text-muted-foreground">New</span>
+              )}
             </div>
           </div>
         </div>
