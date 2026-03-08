@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Menu, X, User, LogIn, UserPlus, Sparkles, Search } from 'lucide-react';
+import { Menu, X, User, LogIn, UserPlus, Sparkles, Search, Inbox } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
+import { useUnreadCount } from '@/lib/use-unread-count';
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { userMode, setUserMode, isAuthenticated, user } = useAuthStore();
+  const { total: unreadCount } = useUnreadCount();
   const router = useRouter();
 
   const handleModeChange = (mode: 'guest' | 'host') => {
@@ -77,6 +79,22 @@ export default function Navbar() {
               </div>
             )}
 
+            {/* Inbox */}
+            {isAuthenticated && (
+              <Link
+                href="/inbox"
+                className="hidden sm:flex relative p-2 rounded-full hover:bg-muted transition-colors"
+                aria-label="Inbox"
+              >
+                <Inbox size={22} className="text-foreground" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-semibold">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+            )}
+
             {/* Profile / Auth buttons */}
             {isAuthenticated ? (
               <Link
@@ -135,6 +153,21 @@ export default function Navbar() {
 
               {isAuthenticated ? (
                 <>
+                  <Link
+                    href="/inbox"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="flex items-center gap-2 text-foreground hover:text-primary transition-colors"
+                  >
+                    <span className="relative">
+                      <Inbox size={18} />
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-2 -right-2 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-semibold">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </span>
+                    Inbox
+                  </Link>
                   <Link
                     href="/dashboard"
                     onClick={() => setIsMenuOpen(false)}

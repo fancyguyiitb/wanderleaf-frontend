@@ -8,7 +8,7 @@ import Footer from '@/components/footer';
 import ImageGallery from '@/components/image-gallery';
 import BookingWidget from '@/components/booking-widget';
 import ReviewsSection from '@/components/reviews-section';
-import { listingsApi, wishlistApi } from '@/lib/api';
+import { bookingsApi, listingsApi, wishlistApi } from '@/lib/api';
 import { useAuthStore, usePropertyStore, Property } from '@/lib/store';
 import { Heart, MapPin, Users, Wifi, Wind, Flame, Coffee, Loader2, Edit2, ArrowLeft, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -27,6 +27,7 @@ export default function PropertyDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isTogglingFavorite, setIsTogglingFavorite] = useState(false);
+  const [hasBookedProperty, setHasBookedProperty] = useState(false);
 
   const isFavorite = propertyId ? favorites.includes(propertyId) : false;
 
@@ -42,6 +43,39 @@ export default function PropertyDetailPage() {
       .catch((err) => setError(err.message || 'Failed to load property.'))
       .finally(() => setIsLoading(false));
   }, [propertyId]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !property || isOwner) {
+      setHasBookedProperty(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    bookingsApi
+      .list()
+      .then((response) => {
+        const bookings = Array.isArray(response) ? response : response.results;
+        const userHasBookingForProperty = bookings.some(
+          (booking) =>
+            String(booking.listing.id) === String(property.id) &&
+            (booking.status === 'pending_payment' || booking.status === 'confirmed')
+        );
+
+        if (!cancelled) {
+          setHasBookedProperty(userHasBookingForProperty);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHasBookedProperty(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, property, isOwner]);
 
   const amenityIcons: Record<string, React.ReactNode> = {
     WiFi: <Wifi size={20} />,
@@ -302,9 +336,11 @@ export default function PropertyDetailPage() {
                   <p className="text-foreground text-sm leading-relaxed">
                     Experienced host with a passion for providing exceptional stays. Known for responsive communication and beautiful properties.
                   </p>
-                  <button className="mt-4 px-6 py-2 border border-primary text-primary rounded-lg font-medium hover:bg-primary/10 transition-colors">
-                    Contact Host
-                  </button>
+                  {hasBookedProperty && (
+                    <p className="mt-4 text-sm text-muted-foreground">
+                      Contact is available from your active booking details page.
+                    </p>
+                  )}
                 </div>
               </div>
             </motion.section>

@@ -437,6 +437,68 @@ export interface ApiBooking {
   created_at: string;
 }
 
+export interface ApiChatUser {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string | null;
+}
+
+export interface ApiChatMessage {
+  id: string;
+  sender: ApiChatUser;
+  body: string;
+  message_type: 'text' | 'image' | 'file';
+  attachment_url: string;
+  attachment_name: string;
+  attachment_mime: string;
+  attachment_bytes: number | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiConversation {
+  id: string;
+  booking_id: string;
+  booking_status: string;
+  booking_status_display: string;
+  is_chat_available: boolean;
+  participants: ApiChatUser[];
+  messages: ApiChatMessage[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ApiChatNotification {
+  booking_id: string;
+  conversation_id: string;
+  booking_title: string;
+  message: ApiChatMessage;
+}
+
+export interface ApiInboxItem {
+  id: string;
+  booking_id: string;
+  booking_title: string;
+  is_chat_available: boolean;
+  other_participant: ApiChatUser;
+  last_message: string;
+  last_message_at: string | null;
+  unread_count: number;
+}
+
+export interface ApiUnreadCountResponse {
+  total: number;
+}
+
+export interface ApiAttachmentUpload {
+  attachment_url: string;
+  attachment_name: string;
+  attachment_mime: string;
+  attachment_bytes: number | null;
+  message_type: 'image' | 'file';
+}
+
 export const bookingsApi = {
   async create(payload: CreateBookingPayload) {
     return apiFetch<{
@@ -509,6 +571,63 @@ export const bookingsApi = {
       method: 'POST',
       body: JSON.stringify({ reason: reason ?? '' }),
     });
+  },
+};
+
+/* ─── Messaging API ─── */
+
+const getWebSocketBaseUrl = () => {
+  const apiBase = new URL(getBaseUrl());
+  apiBase.protocol = apiBase.protocol === 'https:' ? 'wss:' : 'ws:';
+  apiBase.pathname = '';
+  apiBase.search = '';
+  apiBase.hash = '';
+  return apiBase.toString().replace(/\/$/, '');
+};
+
+export const messagingApi = {
+  async listInbox() {
+    return apiFetch<ApiInboxItem[]>('/api/v1/messaging/inbox/');
+  },
+
+  async getUnreadCount() {
+    return apiFetch<ApiUnreadCountResponse>('/api/v1/messaging/unread-count/');
+  },
+
+  async getConversationForBooking(bookingId: string) {
+    return apiFetch<ApiConversation>(`/api/v1/messaging/bookings/${bookingId}/conversation/`);
+  },
+
+  async markConversationAsRead(conversationId: string) {
+    return apiFetch<{ detail: string }>(
+      `/api/v1/messaging/conversations/${conversationId}/mark-read/`,
+      { method: 'POST' }
+    );
+  },
+
+  async uploadAttachment(conversationId: string, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    return apiUpload<ApiAttachmentUpload>(
+      `/api/v1/messaging/conversations/${conversationId}/attachments/`,
+      formData
+    );
+  },
+
+  getConversationWebSocketUrl(conversationId: string) {
+    const token = useAuthStore.getState().accessToken;
+    if (!token) {
+      throw new Error('Missing authentication token for chat connection.');
+    }
+    return `${getWebSocketBaseUrl()}/ws/messaging/conversations/${conversationId}/?token=${encodeURIComponent(token)}`;
+  },
+
+  getNotificationsWebSocketUrl() {
+    const token = useAuthStore.getState().accessToken;
+    if (!token) {
+      throw new Error('Missing authentication token for chat connection.');
+    }
+    return `${getWebSocketBaseUrl()}/ws/messaging/notifications/?token=${encodeURIComponent(token)}`;
   },
 };
 
