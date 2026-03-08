@@ -156,8 +156,8 @@ export interface ApiListing {
   booked_dates?: { check_in: string; check_out: string }[];
   service_fee_percent?: number;
   cleaning_fee?: number;
-  /** From reviews - present in detail response */
-  rating?: number;
+  /** From reviews - present in list and detail responses */
+  rating?: number | string;
   review_count?: number;
   rating_breakdown?: { stars: number; count: number; percentage: number }[];
 }
@@ -183,7 +183,7 @@ export function mapApiListingToProperty(api: ApiListing): Property {
       lng: api.longitude ? Number(api.longitude) : 0,
     },
     price: Number(api.price_per_night),
-    rating: api.rating ?? 0,
+    rating: api.rating != null && api.rating !== '' ? Number(api.rating) : 0,
     reviews: api.review_count ?? 0,
     images: api.images,
     amenities: api.amenities,
