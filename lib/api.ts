@@ -598,6 +598,13 @@ export const messagingApi = {
     return apiFetch<ApiConversation>(`/api/v1/messaging/bookings/${bookingId}/conversation/`);
   },
 
+  async markConversationAsRead(conversationId: string) {
+    return apiFetch<{ detail: string }>(
+      `/api/v1/messaging/conversations/${conversationId}/mark-read/`,
+      { method: 'POST' }
+    );
+  },
+
   async uploadAttachment(conversationId: string, file: File) {
     const formData = new FormData();
     formData.append('file', file);

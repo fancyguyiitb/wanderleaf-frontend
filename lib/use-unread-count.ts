@@ -29,8 +29,9 @@ export function useUnreadCount() {
 
   useEffect(() => {
     if (!authReady || !isAuthenticated) return;
-    const handler = () => {
-      setTotal((prev) => prev + 1);
+    const handler = (e: Event) => {
+      const newMessage = (e as CustomEvent)?.detail?.newMessage === true;
+      if (newMessage) setTotal((prev) => prev + 1);
       fetchCount();
     };
     window.addEventListener('inbox-update', handler);

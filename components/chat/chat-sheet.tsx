@@ -69,6 +69,7 @@ export default function ChatSheet({
       const response = await messagingApi.getConversationForBooking(booking.id);
       setConversation(response);
       setMessages(response.messages);
+      window.dispatchEvent(new CustomEvent('inbox-update'));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load chat.');
     } finally {
@@ -91,11 +92,13 @@ export default function ChatSheet({
   const handleSocketMessage = useCallback(
     (message: ApiChatMessage) => {
       setMessages((previous) => upsertMessage(previous, message));
-      if (String(message.sender.id) !== String(currentUserId)) {
-        window.dispatchEvent(new CustomEvent('inbox-update'));
+      if (String(message.sender.id) !== String(currentUserId) && conversation?.id) {
+        messagingApi.markConversationAsRead(conversation.id).then(() => {
+          window.dispatchEvent(new CustomEvent('inbox-update'));
+        }).catch(() => {});
       }
     },
-    [currentUserId]
+    [currentUserId, conversation?.id]
   );
 
   const handleSocketError = useCallback((message: string) => {
