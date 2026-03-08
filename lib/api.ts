@@ -156,6 +156,10 @@ export interface ApiListing {
   booked_dates?: { check_in: string; check_out: string }[];
   service_fee_percent?: number;
   cleaning_fee?: number;
+  /** From reviews - present in detail response */
+  rating?: number;
+  review_count?: number;
+  rating_breakdown?: { stars: number; count: number; percentage: number }[];
 }
 
 export interface ApiPaginatedResponse<T> {
@@ -179,8 +183,8 @@ export function mapApiListingToProperty(api: ApiListing): Property {
       lng: api.longitude ? Number(api.longitude) : 0,
     },
     price: Number(api.price_per_night),
-    rating: 0,
-    reviews: 0,
+    rating: api.rating ?? 0,
+    reviews: api.review_count ?? 0,
     images: api.images,
     amenities: api.amenities,
     bedrooms: api.bedrooms,
@@ -197,6 +201,7 @@ export function mapApiListingToProperty(api: ApiListing): Property {
     bookedDates: api.booked_dates,
     serviceFeePercent: api.service_fee_percent ?? 12,
     cleaningFee: api.cleaning_fee ?? 250,
+    ratingBreakdown: api.rating_breakdown,
   };
 }
 
@@ -415,6 +420,8 @@ export interface ApiBookingDetail {
   refunded_at?: string | null;
   refund_status?: string | null;
   refund_failed?: boolean;
+  can_write_review?: boolean;
+  existing_review_id?: string | null;
 }
 
 export interface ApiBooking {
@@ -628,6 +635,49 @@ export const messagingApi = {
       throw new Error('Missing authentication token for chat connection.');
     }
     return `${getWebSocketBaseUrl()}/ws/messaging/notifications/?token=${encodeURIComponent(token)}`;
+  },
+};
+
+/* ─── Reviews API ─── */
+
+export interface ApiReview {
+  id: string;
+  author: { id: string; name: string; avatar: string | null };
+  rating: number;
+  comment: string;
+  created_at: string;
+}
+
+export interface ApiReviewsListResponse {
+  results: ApiReview[];
+  count: number;
+  next_offset: number | null;
+}
+
+export const reviewsApi = {
+  async list(
+    listingId: string,
+    limit = 4,
+    offset = 0
+  ): Promise<ApiReviewsListResponse> {
+    const params = new URLSearchParams({ listing: listingId });
+    params.set('limit', String(limit));
+    params.set('offset', String(offset));
+    return apiFetch<ApiReviewsListResponse>(
+      `/api/v1/reviews/?${params.toString()}`,
+      { skipAuthHeader: true }
+    );
+  },
+
+  async create(bookingId: string, rating: number, comment: string): Promise<ApiReview> {
+    return apiFetch<ApiReview>('/api/v1/reviews/', {
+      method: 'POST',
+      body: JSON.stringify({
+        booking_id: bookingId,
+        rating,
+        comment,
+      }),
+    });
   },
 };
 

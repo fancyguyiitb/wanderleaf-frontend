@@ -346,7 +346,12 @@ export default function PropertyDetailPage() {
             </motion.section>
 
             {/* Reviews Section */}
-            <ReviewsSection rating={property.rating} reviewCount={property.reviews} />
+            <ReviewsSection
+                listingId={property.id}
+                rating={property.rating}
+                reviewCount={property.reviews}
+                ratingBreakdown={property.ratingBreakdown}
+              />
           </div>
 
           {/* Right Column - Booking Widget */}

@@ -18,6 +18,7 @@ export interface Property {
   price: number;
   rating: number;
   reviews: number;
+  ratingBreakdown?: { stars: number; count: number; percentage: number }[];
   images: string[];
   amenities: string[];
   bedrooms: number;

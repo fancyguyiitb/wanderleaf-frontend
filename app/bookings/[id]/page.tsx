@@ -9,6 +9,7 @@ import Footer from '@/components/footer';
 import RequireAuth from '@/components/require-auth';
 import CancelBookingDialog from '@/components/cancel-booking-dialog';
 import ChatSheet from '@/components/chat/chat-sheet';
+import WriteReviewModal from '@/components/write-review-modal';
 import {
   ArrowLeft,
   MapPin,
@@ -21,6 +22,7 @@ import {
   CreditCard,
   AlertCircle,
   Clock,
+  Star,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { bookingsApi, type ApiBookingDetail } from '@/lib/api';
@@ -89,6 +91,7 @@ export default function BookingDetailPage() {
   const [retryError, setRetryError] = useState<string | null>(null);
   const [isAutoCancelling, setIsAutoCancelling] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
 
   const refetchBooking = useCallback(() => {
     if (!bookingId) return;
@@ -549,6 +552,42 @@ export default function BookingDetailPage() {
               </motion.div>
             )}
 
+            {/* Write a review (guests only) */}
+            {!isHost && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.28 }}
+                className="card-elegant p-6 rounded-xl"
+              >
+                <h3 className="font-semibold text-foreground mb-4">Leave a review</h3>
+                {booking.can_write_review ? (
+                  <>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Share your experience to help other guests and the host.
+                    </p>
+                    <button
+                      onClick={() => setShowReviewModal(true)}
+                      className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Star size={18} />
+                      Write a review
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {booking.existing_review_id
+                      ? "You've already left a review for this stay."
+                      : booking.status === 'pending_payment'
+                        ? 'Complete your payment to leave a review after your stay.'
+                        : new Date(booking.check_out) > new Date()
+                          ? `You can leave a review after your checkout on ${formatDate(booking.check_out)}.`
+                          : 'You can leave a review for this stay.'}
+                  </p>
+                )}
+              </motion.div>
+            )}
+
             {/* Host (only for guests) or Guest (for hosts) */}
             {!isHost && (
               <motion.div
@@ -723,6 +762,15 @@ export default function BookingDetailPage() {
           booking={booking}
           currentUserId={String(user.id)}
           isHost={Boolean(isHost)}
+        />
+      )}
+      {booking && (
+        <WriteReviewModal
+          open={showReviewModal}
+          onOpenChange={setShowReviewModal}
+          bookingId={booking.id}
+          listingTitle={booking.listing.title}
+          onSuccess={refetchBooking}
         />
       )}
     </div>
