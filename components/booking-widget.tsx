@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import { Calendar, Users, ChevronDown } from 'lucide-react';
@@ -24,6 +24,7 @@ interface BookingWidgetProps {
 
 export default function BookingWidget({ property }: BookingWidgetProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const user = useAuthStore((s) => s.user);
 
@@ -36,8 +37,46 @@ export default function BookingWidget({ property }: BookingWidgetProps) {
 
   const bookedRanges: BookedRange[] = property.bookedDates ?? [];
   const disabledDateStrings = getDisabledDates(bookedRanges);
+  const maxGuests = Math.min(property.guests, 8);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
+
+  useEffect(() => {
+    const checkInParam = searchParams.get('checkIn');
+    const checkOutParam = searchParams.get('checkOut');
+    const guestsParam = searchParams.get('guests');
+    const availabilityUpdated = searchParams.get('availabilityUpdated') === '1';
+
+    if (guestsParam) {
+      const parsedGuests = Number(guestsParam);
+      if (!Number.isNaN(parsedGuests) && parsedGuests >= 1) {
+        setGuests(Math.min(parsedGuests, maxGuests));
+      }
+    }
+
+    if (!checkInParam) return;
+
+    const parseDateInput = (value: string) => {
+      const [year, month, day] = value.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    };
+
+    const nextFrom = parseDateInput(checkInParam);
+    const nextTo = checkOutParam ? parseDateInput(checkOutParam) : undefined;
+    const nextRange = { from: nextFrom, to: nextTo };
+    setRange(nextRange);
+
+    if (nextTo && nextTo > nextFrom && !isDateRangeAvailable(nextFrom, nextTo, bookedRanges)) {
+      setDateError(
+        availabilityUpdated
+          ? 'Availability was refreshed. Your previous dates are no longer available.'
+          : 'Selected dates overlap with an existing booking.'
+      );
+      return;
+    }
+
+    setDateError(null);
+  }, [bookedRanges, maxGuests, searchParams]);
 
   const disabledMatcher = (date: Date) => {
     const dateStr = format(date, 'yyyy-MM-dd');
@@ -59,8 +98,6 @@ export default function BookingWidget({ property }: BookingWidgetProps) {
           property.cleaningFee ?? 250
         )
       : null;
-
-  const maxGuests = Math.min(property.guests, 8);
 
   const handleRangeSelect = (r: { from?: Date; to?: Date } | undefined) => {
     setRange(r);

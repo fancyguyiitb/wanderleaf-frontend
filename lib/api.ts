@@ -6,7 +6,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public readonly status?: number,
-    public readonly code?: string
+    public readonly code?: string,
+    public readonly details?: unknown
   ) {
     super(message);
     this.name = 'ApiError';
@@ -110,7 +111,7 @@ export const apiFetch = async <TResponse>(
         (data as any)?.message ||
         'Something went wrong while communicating with the server.';
       const code = (data as any)?.code;
-      throw new ApiError(message, response.status, code);
+      throw new ApiError(message, response.status, code, data);
     }
 
     console.debug('[apiFetch] Success', { url, data });
@@ -386,6 +387,21 @@ export interface CreateBookingPayload {
   special_requests?: string;
 }
 
+export interface ApiBookingConflict {
+  id: string;
+  check_in: string;
+  check_out: string;
+  status: string;
+}
+
+export interface ApiAvailabilityCheckResponse {
+  is_available: boolean;
+  check_in: string;
+  check_out: string;
+  conflicts_count: number;
+  conflicts: ApiBookingConflict[];
+}
+
 export interface ApiBookingDetail {
   id: string;
   listing: {
@@ -514,6 +530,14 @@ export const bookingsApi = {
     }>('/api/v1/bookings/', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  },
+
+  async checkAvailability(payload: Pick<CreateBookingPayload, 'listing_id' | 'check_in' | 'check_out'>) {
+    return apiFetch<ApiAvailabilityCheckResponse>('/api/v1/bookings/check-availability/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+      skipAuthHeader: true,
     });
   },
 

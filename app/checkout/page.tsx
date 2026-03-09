@@ -9,11 +9,45 @@ import Footer from '@/components/footer';
 import RequireAuth from '@/components/require-auth';
 import { CreditCard, Lock, CheckCircle, MapPin, Calendar, Users, Loader2, XCircle, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { listingsApi, bookingsApi, ApiError } from '@/lib/api';
+import { listingsApi, bookingsApi, ApiError, type ApiBookingConflict } from '@/lib/api';
 import { Property, useAuthStore } from '@/lib/store';
 
 type Step = 'payment' | 'confirmation' | 'error';
-type ErrorType = 'payment_gateway_unavailable' | 'booking_failed' | 'payment_verification_failed' | 'payment_cancelled';
+type ErrorType =
+  | 'payment_gateway_unavailable'
+  | 'booking_failed'
+  | 'booking_conflict'
+  | 'payment_verification_failed'
+  | 'payment_cancelled';
+
+function formatConflictRange(conflict: ApiBookingConflict) {
+  const formatDate = (value: string) =>
+    new Date(`${value}T00:00:00`).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
+  return `${formatDate(conflict.check_in)} to ${formatDate(conflict.check_out)}`;
+}
+
+function getConflictDetails(details: unknown): ApiBookingConflict[] {
+  if (!details || typeof details !== 'object') return [];
+
+  const conflicts = (details as { conflicts?: unknown }).conflicts;
+  if (!Array.isArray(conflicts)) return [];
+
+  return conflicts.filter((conflict): conflict is ApiBookingConflict => {
+    if (!conflict || typeof conflict !== 'object') return false;
+    const value = conflict as Record<string, unknown>;
+    return (
+      typeof value.id === 'string' &&
+      typeof value.check_in === 'string' &&
+      typeof value.check_out === 'string' &&
+      typeof value.status === 'string'
+    );
+  });
+}
 
 declare global {
   interface Window {
@@ -47,11 +81,15 @@ function ErrorScreen({
   message,
   bookingId,
   onRetry,
+  listingHref,
+  conflictSummary,
 }: {
   type: ErrorType;
   message: string;
   bookingId?: string | null;
   onRetry?: () => void;
+  listingHref?: string | null;
+  conflictSummary?: string | null;
 }) {
   const Icon = type === 'payment_cancelled' ? AlertCircle : XCircle;
   const iconBg = type === 'payment_cancelled' ? 'bg-amber-100' : 'bg-destructive/10';
@@ -75,6 +113,7 @@ function ErrorScreen({
       <h1 className="font-playfair text-4xl font-bold text-foreground mb-4">
         {type === 'payment_gateway_unavailable' && 'Payment Unavailable'}
         {type === 'booking_failed' && 'Booking Failed'}
+        {type === 'booking_conflict' && 'Dates No Longer Available'}
         {type === 'payment_verification_failed' && 'Payment Verification Failed'}
         {type === 'payment_cancelled' && 'Payment Cancelled'}
       </h1>
@@ -93,6 +132,18 @@ function ErrorScreen({
         </p>
       )}
 
+      {type === 'booking_conflict' && (
+        <p className="text-sm text-muted-foreground mb-6 p-4 rounded-lg bg-muted border border-border">
+          Availability was refreshed while you were checking out. Return to the listing to pick a new date range.
+        </p>
+      )}
+
+      {type === 'booking_conflict' && conflictSummary && (
+        <p className="text-sm text-destructive mb-6">
+          First conflicting stay: {conflictSummary}
+        </p>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
         {onRetry && (
           <button
@@ -101,6 +152,13 @@ function ErrorScreen({
           >
             Try Again
           </button>
+        )}
+        {type === 'booking_conflict' && listingHref && (
+          <Link href={listingHref}>
+            <span className="inline-block px-8 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:bg-primary/90 transition-colors">
+              View Refreshed Availability
+            </span>
+          </Link>
         )}
         {bookingId && (
           <Link href={`/bookings/${bookingId}`}>
@@ -134,6 +192,7 @@ export default function CheckoutPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [createdBookingId, setCreatedBookingId] = useState<string | null>(null);
+  const [conflicts, setConflicts] = useState<ApiBookingConflict[]>([]);
   const [property, setProperty] = useState<Property | null>(null);
   const [loadingProperty, setLoadingProperty] = useState(true);
 
@@ -185,7 +244,22 @@ export default function CheckoutPage() {
     setStep('payment');
     setErrorType(null);
     setErrorMessage(null);
+    setConflicts([]);
   }, []);
+
+  const propertySelectionHref = propertyId
+    ? (() => {
+        const params = new URLSearchParams({
+          guests: String(guestCount),
+          availabilityUpdated: '1',
+        });
+        if (checkIn) params.set('checkIn', checkIn);
+        if (checkOut) params.set('checkOut', checkOut);
+        return `/property/${propertyId}?${params.toString()}`;
+      })()
+    : null;
+
+  const firstConflictSummary = conflicts.length > 0 ? formatConflictRange(conflicts[0]) : null;
 
   const handlePayment = useCallback(
     async (e: React.FormEvent) => {
@@ -200,8 +274,24 @@ export default function CheckoutPage() {
       setIsProcessing(true);
       setErrorType(null);
       setErrorMessage(null);
+      setCreatedBookingId(null);
+      setConflicts([]);
       let openedRazorpay = false;
       try {
+        const availability = await bookingsApi.checkAvailability({
+          listing_id: propertyId,
+          check_in: checkIn,
+          check_out: checkOut,
+        });
+
+        if (!availability.is_available) {
+          setConflicts(availability.conflicts);
+          setStep('error');
+          setErrorType('booking_conflict');
+          setErrorMessage('Selected dates overlap with an existing booking. Please choose different dates.');
+          return;
+        }
+
         const { booking, payment } = await bookingsApi.create({
           listing_id: propertyId,
           check_in: checkIn,
@@ -267,6 +357,11 @@ export default function CheckoutPage() {
             setStep('error');
             setErrorType('payment_gateway_unavailable');
             setErrorMessage(err.message);
+          } else if (err.code === 'booking_dates_overlap' || err.status === 409) {
+            setConflicts(getConflictDetails(err.details));
+            setStep('error');
+            setErrorType('booking_conflict');
+            setErrorMessage(err.message);
           } else {
             setStep('error');
             setErrorType('booking_failed');
@@ -331,6 +426,8 @@ export default function CheckoutPage() {
             message={errorMessage ?? 'An error occurred.'}
             bookingId={createdBookingId}
             onRetry={errorType === 'booking_failed' ? clearError : undefined}
+            listingHref={errorType === 'booking_conflict' ? propertySelectionHref : null}
+            conflictSummary={errorType === 'booking_conflict' ? firstConflictSummary : null}
           />
         ) : step === 'payment' ? (
           <>
