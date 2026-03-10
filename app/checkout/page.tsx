@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Script from 'next/script';
 import { useSearchParams } from 'next/navigation';
@@ -9,7 +9,7 @@ import Footer from '@/components/footer';
 import RequireAuth from '@/components/require-auth';
 import { CreditCard, Lock, CheckCircle, MapPin, Calendar, Users, Loader2, XCircle, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { listingsApi, bookingsApi, ApiError, type ApiBookingConflict } from '@/lib/api';
+import { listingsApi, bookingsApi, ApiError, createIdempotencyKey, type ApiBookingConflict } from '@/lib/api';
 import { Property, useAuthStore } from '@/lib/store';
 
 type Step = 'payment' | 'confirmation' | 'error';
@@ -51,7 +51,7 @@ function getConflictDetails(details: unknown): ApiBookingConflict[] {
 
 declare global {
   interface Window {
-    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
+    Razorpay?: new (options: RazorpayOptions) => RazorpayInstance;
   }
 }
 
@@ -186,6 +186,7 @@ export default function CheckoutPage() {
   const searchParams = useSearchParams();
   const propertyId = searchParams.get('propertyId');
   const user = useAuthStore((s) => s.user);
+  const createBookingIdempotencyKeyRef = useRef(createIdempotencyKey('booking_create'));
 
   const [step, setStep] = useState<Step>('payment');
   const [errorType, setErrorType] = useState<ErrorType | null>(null);
@@ -292,12 +293,17 @@ export default function CheckoutPage() {
           return;
         }
 
-        const { booking, payment } = await bookingsApi.create({
-          listing_id: propertyId,
-          check_in: checkIn,
-          check_out: checkOut,
-          num_guests: guestCount,
-        });
+        const { booking, payment } = await bookingsApi.create(
+          {
+            listing_id: propertyId,
+            check_in: checkIn,
+            check_out: checkOut,
+            num_guests: guestCount,
+          },
+          {
+            idempotencyKey: createBookingIdempotencyKeyRef.current,
+          }
+        );
         setCreatedBookingId(booking.id);
 
         const orderId = payment?.order_id as string | null;
