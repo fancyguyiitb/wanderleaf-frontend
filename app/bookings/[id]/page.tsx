@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Script from 'next/script';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -25,7 +25,7 @@ import {
   Star,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { bookingsApi, type ApiBookingDetail } from '@/lib/api';
+import { bookingsApi, createIdempotencyKey, type ApiBookingDetail } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { getAvatarUrl } from '@/lib/avatar';
 
@@ -63,13 +63,15 @@ declare global {
   interface Window {
     Razorpay?: new (opts: {
       key: string;
+      amount?: number;
+      currency?: string;
       order_id: string;
       name?: string;
       description?: string;
       prefill?: { name?: string; email?: string };
       handler: (r: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => void;
       modal?: { ondismiss?: () => void };
-    }) => { open: () => void };
+    }) => { open: () => void; on: (event: string, handler: () => void) => void };
   }
 }
 
@@ -92,6 +94,7 @@ export default function BookingDetailPage() {
   const [isAutoCancelling, setIsAutoCancelling] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const retryPaymentIdempotencyKeyRef = useRef<string | null>(null);
 
   const refetchBooking = useCallback(() => {
     if (!bookingId) return;
@@ -165,6 +168,7 @@ export default function BookingDetailPage() {
   useEffect(() => {
     if (!retryAllowed || !booking) {
       setSecondsLeft(null);
+      retryPaymentIdempotencyKeyRef.current = null;
       return;
     }
     const deadlineSeconds = booking.payment_deadline_seconds ?? 0;
@@ -202,8 +206,13 @@ export default function BookingDetailPage() {
     if (!booking?.id || !retryAllowed || secondsLeft !== null && secondsLeft <= 0 || isRetryingPayment) return;
     setIsRetryingPayment(true);
     setRetryError(null);
+    if (!retryPaymentIdempotencyKeyRef.current) {
+      retryPaymentIdempotencyKeyRef.current = createIdempotencyKey(`payment_retry_${booking.id}`);
+    }
     try {
-      const payment = await bookingsApi.retryPayment(booking.id);
+      const payment = await bookingsApi.retryPayment(booking.id, {
+        idempotencyKey: retryPaymentIdempotencyKeyRef.current,
+      });
       const orderId = payment.order_id;
       const razorpayKeyId = payment.razorpay_key_id;
       if (typeof window !== 'undefined' && window.Razorpay && orderId && razorpayKeyId) {
@@ -220,6 +229,7 @@ export default function BookingDetailPage() {
                 razorpay_payment_id: res.razorpay_payment_id,
                 razorpay_signature: res.razorpay_signature,
               });
+              retryPaymentIdempotencyKeyRef.current = null;
               refetchBooking();
             } catch (e) {
               setRetryError(e instanceof Error ? e.message : 'Payment verification failed.');

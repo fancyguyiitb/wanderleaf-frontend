@@ -39,16 +39,51 @@ const getBaseUrl = () => {
 
 export const getApiBaseUrl = () => getBaseUrl();
 
+export interface RetryPolicy {
+  maxRetries?: number;
+  initialDelayMs?: number;
+  backoffMultiplier?: number;
+  retryOnStatuses?: number[];
+  retryOnNetworkError?: boolean;
+}
+
+const TRANSIENT_API_STATUS_CODES = [408, 425, 429, 500, 502, 503, 504];
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+export const createIdempotencyKey = (prefix: string = 'req') => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `${prefix}_${crypto.randomUUID()}`;
+  }
+
+  return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const isRetryableNetworkError = (error: unknown) => {
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return (
+    error instanceof TypeError ||
+    message.includes('network') ||
+    message.includes('fetch') ||
+    message.includes('timeout') ||
+    message.includes('cors')
+  );
+};
+
 /* ─── Generic fetch ─── */
 
 export const apiFetch = async <TResponse>(
   path: string,
-  options: RequestInit & { skipAuthHeader?: boolean } = {}
+  options: RequestInit & {
+    skipAuthHeader?: boolean;
+    retryPolicy?: RetryPolicy;
+    idempotencyKey?: string;
+  } = {}
 ): Promise<TResponse> => {
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}${path}`;
 
-  const { skipAuthHeader, headers, ...rest } = options;
+  const { skipAuthHeader, retryPolicy, idempotencyKey, headers, ...rest } = options;
 
   const mergedHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -62,68 +97,107 @@ export const apiFetch = async <TResponse>(
     }
   }
 
-  try {
-    const response = await fetch(url, {
-      ...rest,
-      headers: mergedHeaders,
-    });
+  if (idempotencyKey) {
+    mergedHeaders['Idempotency-Key'] = idempotencyKey;
+  }
 
-    let data: unknown;
+  const maxRetries = retryPolicy?.maxRetries ?? 0;
+  const retryOnStatuses = retryPolicy?.retryOnStatuses ?? TRANSIENT_API_STATUS_CODES;
+  const retryOnNetworkError = retryPolicy?.retryOnNetworkError ?? false;
+  const initialDelayMs = retryPolicy?.initialDelayMs ?? 300;
+  const backoffMultiplier = retryPolicy?.backoffMultiplier ?? 2;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
     try {
-      data = await response.json();
-    } catch {
+      const response = await fetch(url, {
+        ...rest,
+        headers: mergedHeaders,
+      });
+
+      let data: unknown;
+      try {
+        data = await response.json();
+      } catch {
+        if (!response.ok) {
+          console.error('[apiFetch] Non-JSON error response', {
+            url,
+            status: response.status,
+            statusText: response.statusText,
+          });
+
+          if (attempt < maxRetries && retryOnStatuses.includes(response.status)) {
+            await sleep(initialDelayMs * backoffMultiplier ** attempt);
+            continue;
+          }
+
+          throw new Error('Request failed with non-JSON response');
+        }
+        return {} as TResponse;
+      }
+
       if (!response.ok) {
-        console.error('[apiFetch] Non-JSON error response', {
+        console.error('[apiFetch] HTTP error response', {
           url,
           status: response.status,
           statusText: response.statusText,
+          body: data,
+          attempt,
         });
-        throw new Error('Request failed with non-JSON response');
-      }
-      return {} as TResponse;
-    }
 
-    if (!response.ok) {
-      console.error('[apiFetch] HTTP error response', {
-        url,
-        status: response.status,
-        statusText: response.statusText,
-        body: data,
-      });
-
-      // If auth token is invalid or expired, force logout and redirect to login.
-      if (response.status === 401 || response.status === 403) {
-        if (typeof window !== 'undefined') {
-          try {
-            useAuthStore.getState().logout();
-            window.localStorage.removeItem('wanderleaf_auth');
-          } catch {
-            // ignore storage errors
+        if (response.status === 401) {
+          if (typeof window !== 'undefined') {
+            try {
+              useAuthStore.getState().logout();
+              window.localStorage.removeItem('wanderleaf_auth');
+            } catch {
+              // ignore storage errors
+            }
+            const currentPath = window.location.pathname + window.location.search;
+            const redirect = encodeURIComponent(currentPath || '/');
+            window.location.href = `/auth/login?redirect=${redirect}`;
           }
-          const currentPath = window.location.pathname + window.location.search;
-          const redirect = encodeURIComponent(currentPath || '/');
-          window.location.href = `/auth/login?redirect=${redirect}`;
         }
+
+        if (attempt < maxRetries && retryOnStatuses.includes(response.status)) {
+          await sleep(initialDelayMs * backoffMultiplier ** attempt);
+          continue;
+        }
+
+        const message =
+          (data as any)?.detail ||
+          (data as any)?.message ||
+          'Something went wrong while communicating with the server.';
+        const code = (data as any)?.code;
+        throw new ApiError(message, response.status, code, data);
       }
 
-      const message =
-        (data as any)?.detail ||
-        (data as any)?.message ||
-        'Something went wrong while communicating with the server.';
-      const code = (data as any)?.code;
-      throw new ApiError(message, response.status, code, data);
-    }
+      console.debug('[apiFetch] Success', { url, data, attempt });
+      return data as TResponse;
+    } catch (error) {
+      if (
+        attempt < maxRetries &&
+        retryOnNetworkError &&
+        isRetryableNetworkError(error)
+      ) {
+        console.warn('[apiFetch] Retrying transient network error', {
+          url,
+          attempt,
+          error,
+        });
+        await sleep(initialDelayMs * backoffMultiplier ** attempt);
+        continue;
+      }
 
-    console.debug('[apiFetch] Success', { url, data });
-    return data as TResponse;
-  } catch (error) {
-    console.error('[apiFetch] Network or CORS error', {
-      url,
-      options: rest,
-      error,
-    });
-    throw error;
+      console.error('[apiFetch] Network or CORS error', {
+        url,
+        options: rest,
+        error,
+      });
+      throw error;
+    }
   }
+
+  throw new Error('Request retry loop exited unexpectedly');
 };
 
 /* ─── Backend response types ─── */
@@ -523,13 +597,19 @@ export interface ApiAttachmentUpload {
 }
 
 export const bookingsApi = {
-  async create(payload: CreateBookingPayload) {
+  async create(payload: CreateBookingPayload, options?: { idempotencyKey?: string }) {
     return apiFetch<{
       booking: ApiBooking;
       payment: Record<string, unknown>;
     }>('/api/v1/bookings/', {
       method: 'POST',
       body: JSON.stringify(payload),
+      idempotencyKey: options?.idempotencyKey,
+      retryPolicy: {
+        maxRetries: options?.idempotencyKey ? 2 : 0,
+        retryOnStatuses: [502, 503, 504],
+        retryOnNetworkError: Boolean(options?.idempotencyKey),
+      },
     });
   },
 
@@ -577,11 +657,16 @@ export const bookingsApi = {
       {
         method: 'POST',
         body: JSON.stringify(payload),
+        retryPolicy: {
+          maxRetries: 2,
+          retryOnStatuses: [502, 503, 504],
+          retryOnNetworkError: true,
+        },
       }
     );
   },
 
-  async retryPayment(bookingId: string) {
+  async retryPayment(bookingId: string, options?: { idempotencyKey?: string }) {
     return apiFetch<{
       order_id: string;
       razorpay_key_id: string;
@@ -590,6 +675,12 @@ export const bookingsApi = {
       payment_id: string;
     }>(`/api/v1/bookings/${bookingId}/retry-payment/`, {
       method: 'POST',
+      idempotencyKey: options?.idempotencyKey,
+      retryPolicy: {
+        maxRetries: options?.idempotencyKey ? 2 : 0,
+        retryOnStatuses: [502, 503, 504],
+        retryOnNetworkError: Boolean(options?.idempotencyKey),
+      },
     });
   },
 
