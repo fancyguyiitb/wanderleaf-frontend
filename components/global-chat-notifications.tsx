@@ -7,6 +7,7 @@ import {
   messagingApi,
   type ApiChatNotification,
 } from '@/lib/api';
+import { resolveChatMessage } from '@/lib/chat-crypto';
 import { useAuthStore } from '@/lib/store';
 
 export default function GlobalChatNotifications() {
@@ -56,16 +57,22 @@ export default function GlobalChatNotifications() {
           if (toastKeysRef.current.has(toastKey)) return;
           toastKeysRef.current.add(toastKey);
 
-          toast(`${message.sender.name} sent a message`, {
-            description:
-              (message.is_encrypted ? 'Encrypted message' : message.body) ||
+          void (async () => {
+            const resolvedMessage = await resolveChatMessage(message, String(user.id));
+            const description =
+              resolvedMessage.resolved_body ||
               message.attachment_name ||
-              `Open chat for ${bookingTitle} to reply.`,
-            action: {
-              label: 'Open chat',
-              onClick: () => routerRef.current.push(`/bookings/${bookingId}?chat=open`),
-            },
-          });
+              (message.is_encrypted ? 'Encrypted message' : message.body) ||
+              `Open chat for ${bookingTitle} to reply.`;
+
+            toast(`${message.sender.name} sent a message`, {
+              description,
+              action: {
+                label: 'Open chat',
+                onClick: () => routerRef.current.push(`/bookings/${bookingId}?chat=open`),
+              },
+            });
+          })();
           window.dispatchEvent(new CustomEvent('inbox-update', { detail: { newMessage: true } }));
         } catch {
           // Ignore malformed websocket payloads
