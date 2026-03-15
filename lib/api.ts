@@ -604,6 +604,7 @@ export interface ApiInboxItem {
   is_chat_available: boolean;
   other_participant: ApiChatUser;
   last_message: string;
+  last_message_payload: ApiChatMessage | null;
   last_message_at: string | null;
   unread_count: number;
 }

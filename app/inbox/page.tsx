@@ -6,10 +6,17 @@ import Link from 'next/link';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import RequireAuth from '@/components/require-auth';
-import { Inbox, Loader2 } from 'lucide-react';
+import { Inbox, Loader2, Paperclip } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { messagingApi, type ApiInboxItem } from '@/lib/api';
 import { getAvatarUrl } from '@/lib/avatar';
+import { resolveChatMessage } from '@/lib/chat-crypto';
+import { useAuthStore } from '@/lib/store';
+
+type ResolvedInboxItem = ApiInboxItem & {
+  resolved_preview: string;
+  preview_has_attachment: boolean;
+};
 
 function formatRelativeTime(dateStr: string | null): string {
   if (!dateStr) return '';
@@ -29,18 +36,41 @@ function formatRelativeTime(dateStr: string | null): string {
 
 export default function InboxPage() {
   const router = useRouter();
-  const [items, setItems] = useState<ApiInboxItem[]>([]);
+  const currentUserId = useAuthStore((state) => state.user?.id ?? '');
+  const [items, setItems] = useState<ResolvedInboxItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const fetchInbox = useCallback(async (silent = false) => {
+    if (!currentUserId) return;
     if (!silent) {
       setIsLoading(true);
       setError(null);
     }
     try {
       const list = await messagingApi.listInbox();
-      setItems(list);
+      const resolvedList = await Promise.all(
+        list.map(async (item) => {
+          const resolvedMessage = item.last_message_payload
+            ? await resolveChatMessage(item.last_message_payload, currentUserId)
+            : null;
+          const attachmentLabel =
+            resolvedMessage?.resolved_attachment_name ||
+            item.last_message_payload?.attachment_name ||
+            '';
+          const resolvedPreview =
+            (attachmentLabel ? attachmentLabel : '') ||
+            resolvedMessage?.resolved_body ||
+            item.last_message;
+
+          return {
+            ...item,
+            resolved_preview: resolvedPreview,
+            preview_has_attachment: Boolean(attachmentLabel),
+          };
+        })
+      );
+      setItems(resolvedList);
     } catch (err) {
       if (!silent) {
         setError(err instanceof Error ? err.message : 'Failed to load inbox.');
@@ -50,7 +80,7 @@ export default function InboxPage() {
         setIsLoading(false);
       }
     }
-  }, []);
+  }, [currentUserId]);
 
   useEffect(() => {
     fetchInbox(false);
@@ -171,16 +201,17 @@ export default function InboxPage() {
                     <p className="text-sm text-muted-foreground truncate">
                       {item.booking_title}
                     </p>
-                    {item.last_message && (
-                      <p
-                        className={`text-sm truncate mt-0.5 ${
+                    {item.resolved_preview && (
+                      <div
+                        className={`mt-0.5 flex items-center gap-1.5 text-sm truncate ${
                           item.unread_count > 0
                             ? 'text-foreground font-medium'
                             : 'text-muted-foreground'
                         }`}
                       >
-                        {item.last_message}
-                      </p>
+                        {item.preview_has_attachment && <Paperclip size={14} className="shrink-0" />}
+                        <p className="truncate">{item.resolved_preview}</p>
+                      </div>
                     )}
                   </div>
                 </button>

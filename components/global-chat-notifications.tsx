@@ -59,10 +59,11 @@ export default function GlobalChatNotifications() {
 
           void (async () => {
             const resolvedMessage = await resolveChatMessage(message, String(user.id));
+            const attachmentLabel =
+              resolvedMessage.resolved_attachment_name || message.attachment_name;
             const description =
+              (attachmentLabel ? `📎 ${attachmentLabel}` : '') ||
               resolvedMessage.resolved_body ||
-              resolvedMessage.resolved_attachment_name ||
-              message.attachment_name ||
               (message.is_encrypted ? 'Encrypted message' : message.body) ||
               `Open chat for ${bookingTitle} to reply.`;
 
