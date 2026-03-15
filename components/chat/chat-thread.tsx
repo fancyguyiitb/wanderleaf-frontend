@@ -8,11 +8,11 @@ import {
 } from '@chatscope/chat-ui-kit-react';
 import { Download, FileText } from 'lucide-react';
 import { getAvatarUrl } from '@/lib/avatar';
+import type { ResolvedChatMessage } from '@/lib/chat-crypto';
 import { cn } from '@/lib/utils';
-import type { ApiChatMessage } from '@/lib/api';
 
 interface ChatThreadProps {
-  messages: ApiChatMessage[];
+  messages: ResolvedChatMessage[];
   currentUserId: string;
 }
 
@@ -54,8 +54,12 @@ export default function ChatThread({ messages, currentUserId }: ChatThreadProps)
                             : 'bg-secondary text-secondary-foreground'
                         )}
                       >
-                        {message.body && (
-                          <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.body}</p>
+                        {message.resolved_body && (
+                          <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.resolved_body}</p>
+                        )}
+
+                        {message.decryption_error && (
+                          <p className="text-xs opacity-80">{message.decryption_error}</p>
                         )}
 
                         {hasAttachment && message.message_type === 'image' && (

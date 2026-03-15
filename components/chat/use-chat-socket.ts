@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { messagingApi, type ApiChatMessage } from '@/lib/api';
+import { messagingApi, type ApiChatMessage, type ApiEncryptedBody } from '@/lib/api';
 
 type ConnectionState = 'idle' | 'connecting' | 'open' | 'closed' | 'error';
 
 interface SendMessagePayload {
   body: string;
+  encrypted_body?: ApiEncryptedBody;
   message_type?: 'text' | 'image' | 'file';
   attachment_url?: string;
   attachment_name?: string;

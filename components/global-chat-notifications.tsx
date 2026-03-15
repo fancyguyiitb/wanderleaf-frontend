@@ -58,7 +58,7 @@ export default function GlobalChatNotifications() {
 
           toast(`${message.sender.name} sent a message`, {
             description:
-              message.body ||
+              (message.is_encrypted ? 'Encrypted message' : message.body) ||
               message.attachment_name ||
               `Open chat for ${bookingTitle} to reply.`,
             action: {

@@ -28,6 +28,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { apiFetch } from '@/lib/api';
+import { syncChatKeyAfterLogin } from '@/lib/chat-crypto';
 import { useAuthStore } from '@/lib/store';
 
 const phoneSchema = z
@@ -64,7 +65,10 @@ function getSafeRedirect(redirect: string | null): string {
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
-  const setAuth = useAuthStore((state) => state.setAuth);
+  const { setAuth, logout } = useAuthStore((state) => ({
+    setAuth: state.setAuth,
+    logout: state.logout,
+  }));
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = getSafeRedirect(searchParams.get('redirect'));
@@ -143,8 +147,12 @@ export default function LoginPage() {
         window.localStorage.removeItem('wanderleaf_auth');
       }
 
+      await syncChatKeyAfterLogin(String(response.user.id), values.password);
+
       router.push(redirectTo);
     } catch (error: any) {
+      logout();
+      window.localStorage.removeItem('wanderleaf_auth');
       console.error('[Login] Login failed', { error });
       const message = error?.message ?? 'Unable to sign you in. Please try again.';
       form.setError('password', { type: 'manual', message });

@@ -539,12 +539,36 @@ export interface ApiChatUser {
   name: string;
   email: string;
   avatar: string | null;
+  chat_encryption: ApiChatParticipantEncryption | null;
+}
+
+export interface ApiChatParticipantEncryption {
+  public_key: string;
+  algorithm: string;
+  version: number;
+}
+
+export interface ApiEncryptedWrappedKey {
+  wrapped_key: string;
+  key_version: number;
+}
+
+export interface ApiEncryptedBody {
+  ciphertext: string;
+  iv: string;
+  wrapped_keys: Record<string, ApiEncryptedWrappedKey>;
+  algorithm: string;
+  key_algorithm: string;
+  version: number;
+  sender_key_version: number;
 }
 
 export interface ApiChatMessage {
   id: string;
   sender: ApiChatUser;
   body: string;
+  encrypted_body: ApiEncryptedBody | null;
+  is_encrypted: boolean;
   message_type: 'text' | 'image' | 'file';
   attachment_url: string;
   attachment_name: string;
@@ -594,6 +618,21 @@ export interface ApiAttachmentUpload {
   attachment_mime: string;
   attachment_bytes: number | null;
   message_type: 'image' | 'file';
+}
+
+export interface ApiCurrentUserChatKey {
+  has_backup: boolean;
+  public_key: string;
+  key_algorithm: string;
+  key_version: number;
+  encrypted_private_key: string;
+  backup_iv: string;
+  backup_salt: string;
+  backup_kdf: string;
+  backup_kdf_iterations: number;
+  backup_cipher: string;
+  backup_version: number;
+  chat_key_uploaded_at: string | null;
 }
 
 export const bookingsApi = {
@@ -750,6 +789,30 @@ export const messagingApi = {
       throw new Error('Missing authentication token for chat connection.');
     }
     return `${getWebSocketBaseUrl()}/ws/messaging/notifications/?token=${encodeURIComponent(token)}`;
+  },
+};
+
+export const authApi = {
+  async getMyChatKey() {
+    return apiFetch<ApiCurrentUserChatKey>('/api/v1/auth/me/chat-key/');
+  },
+
+  async registerMyChatKey(payload: {
+    public_key: string;
+    key_algorithm: string;
+    key_version: number;
+    encrypted_private_key: string;
+    backup_iv: string;
+    backup_salt: string;
+    backup_kdf: string;
+    backup_kdf_iterations: number;
+    backup_cipher: string;
+    backup_version: number;
+  }) {
+    return apiFetch<ApiCurrentUserChatKey>('/api/v1/auth/me/chat-key/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   },
 };
 
