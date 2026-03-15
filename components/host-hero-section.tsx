@@ -6,9 +6,20 @@ import { Home, PlusCircle, TrendingUp } from 'lucide-react';
 interface HostHeroSectionProps {
   onCreateProperty: () => void;
   listingCount: number;
+  totalEarnings: number;
 }
 
-export default function HostHeroSection({ onCreateProperty, listingCount }: HostHeroSectionProps) {
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('en-IN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+
+export default function HostHeroSection({
+  onCreateProperty,
+  listingCount,
+  totalEarnings,
+}: HostHeroSectionProps) {
   return (
     <section className="relative w-full overflow-hidden">
       {/* Background */}
@@ -63,7 +74,7 @@ export default function HostHeroSection({ onCreateProperty, listingCount }: Host
                 <TrendingUp size={20} className="text-accent" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-foreground">₹0</p>
+                <p className="text-2xl font-bold text-foreground">₹{formatCurrency(totalEarnings)}</p>
                 <p className="text-xs text-muted-foreground">Total Earned</p>
               </div>
             </div>

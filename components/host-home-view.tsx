@@ -20,7 +20,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useHostListingStore, useAuthStore, Property } from '@/lib/store';
-import { listingsApi } from '@/lib/api';
+import { bookingsApi, listingsApi, type ApiBooking } from '@/lib/api';
 import HostHeroSection from '@/components/host-hero-section';
 import CreatePropertyForm from '@/components/create-property-form';
 import DeletePropertyDialog from '@/components/delete-property-dialog';
@@ -34,24 +34,38 @@ export default function HostHomeView() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [hostBookings, setHostBookings] = useState<ApiBooking[]>([]);
 
-  const fetchListings = useCallback(async () => {
+  const fetchHostData = useCallback(async () => {
     if (!isAuthenticated) return;
     setIsLoading(true);
     setFetchError(null);
     try {
-      const listings = await listingsApi.getMyListings();
+      const [listings, bookingsResponse] = await Promise.all([
+        listingsApi.getMyListings(),
+        bookingsApi.listForHost(),
+      ]);
+      const bookings = Array.isArray(bookingsResponse)
+        ? bookingsResponse
+        : bookingsResponse.results;
+
       setHostListings(listings);
+      setHostBookings(bookings);
     } catch (err: any) {
-      setFetchError(err.message || 'Failed to load your listings.');
+      setFetchError(err.message || 'Failed to load your host data.');
     } finally {
       setIsLoading(false);
     }
   }, [isAuthenticated, setHostListings]);
 
   useEffect(() => {
-    fetchListings();
-  }, [fetchListings]);
+    fetchHostData();
+  }, [fetchHostData]);
+
+  const totalEarnings = hostBookings.reduce(
+    (sum, booking) => sum + Number(booking.total_price || 0),
+    0
+  );
 
   const handleCreateProperty = (property: Property) => {
     addHostListing(property);
@@ -83,6 +97,7 @@ export default function HostHomeView() {
       <HostHeroSection
         onCreateProperty={() => setIsCreateOpen(true)}
         listingCount={hostListings.length}
+        totalEarnings={totalEarnings}
       />
 
       {/* Main Content */}
@@ -108,7 +123,7 @@ export default function HostHomeView() {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={fetchListings}
+              onClick={fetchHostData}
               disabled={isLoading}
               className="p-2.5 rounded-lg border border-border text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
               title="Refresh listings"
@@ -138,7 +153,7 @@ export default function HostHomeView() {
           >
             <span>{fetchError}</span>
             <button
-              onClick={fetchListings}
+              onClick={fetchHostData}
               className="ml-4 px-3 py-1 rounded-lg bg-destructive text-destructive-foreground text-xs font-medium hover:bg-destructive/90 transition-colors"
             >
               Retry

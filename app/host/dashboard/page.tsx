@@ -7,36 +7,56 @@ import RequireAuth from '@/components/require-auth';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart3, Users, IndianRupee, Calendar, PlusCircle, Edit2, Trash2, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { listingsApi } from '@/lib/api';
+import { bookingsApi, listingsApi, type ApiBooking } from '@/lib/api';
 import { Property } from '@/lib/store';
 
 export default function HostDashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [hostProperties, setHostProperties] = useState<Property[]>([]);
+  const [hostBookings, setHostBookings] = useState<ApiBooking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchProperties = useCallback(async () => {
+  const fetchDashboardData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const listings = await listingsApi.getMyListings();
+      const [listings, bookingsResponse] = await Promise.all([
+        listingsApi.getMyListings(),
+        bookingsApi.listForHost(),
+      ]);
+      const bookings = Array.isArray(bookingsResponse)
+        ? bookingsResponse
+        : bookingsResponse.results;
+
       setHostProperties(listings);
+      setHostBookings(bookings);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load properties');
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard data');
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchProperties();
-  }, [fetchProperties]);
+    fetchDashboardData();
+  }, [fetchDashboardData]);
+
+  const totalEarnings = hostBookings.reduce(
+    (sum, booking) => sum + Number(booking.total_price || 0),
+    0
+  );
+
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat('en-IN', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(amount);
 
   const analytics = {
-    totalEarnings: 0,
-    totalBookings: 0,
-    totalGuests: 0,
+    totalEarnings,
+    totalBookings: hostBookings.length,
+    totalGuests: hostBookings.reduce((sum, booking) => sum + booking.num_guests, 0),
     occupancyRate: 0,
   };
 
@@ -90,7 +110,7 @@ export default function HostDashboardPage() {
             {
               icon: IndianRupee,
               label: 'Total Earnings',
-              value: `₹${analytics.totalEarnings}`,
+              value: `₹${formatCurrency(analytics.totalEarnings)}`,
               color: 'text-green-600',
               bgColor: 'bg-green-50',
             },
@@ -247,7 +267,7 @@ export default function HostDashboardPage() {
                   <h3 className="text-xl font-semibold text-foreground mb-2">Something went wrong</h3>
                   <p className="text-muted-foreground mb-4">{error}</p>
                   <button
-                    onClick={fetchProperties}
+                    onClick={fetchDashboardData}
                     className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
                   >
                     Try Again
