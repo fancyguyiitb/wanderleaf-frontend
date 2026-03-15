@@ -14,6 +14,14 @@ import {
 } from '@/lib/api';
 import { getAvatarUrl } from '@/lib/avatar';
 import {
+  encryptChatAttachmentMessage,
+  encryptChatTextMessage,
+  ensureLocalChatKeyAvailable,
+  resolveChatMessage,
+  resolveChatMessages,
+  type ResolvedChatMessage,
+} from '@/lib/chat-crypto';
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -32,7 +40,7 @@ interface ChatSheetProps {
   isHost: boolean;
 }
 
-const upsertMessage = (previous: ApiChatMessage[], next: ApiChatMessage) => {
+const upsertMessage = (previous: ResolvedChatMessage[], next: ResolvedChatMessage) => {
   const alreadyExists = previous.some((message) => message.id === next.id);
   if (alreadyExists) {
     return previous.map((message) => (message.id === next.id ? next : message));
@@ -48,7 +56,7 @@ export default function ChatSheet({
   isHost,
 }: ChatSheetProps) {
   const [conversation, setConversation] = useState<ApiConversation | null>(null);
-  const [messages, setMessages] = useState<ApiChatMessage[]>([]);
+  const [messages, setMessages] = useState<ResolvedChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -66,16 +74,18 @@ export default function ChatSheet({
     setError(null);
 
     try {
+      await ensureLocalChatKeyAvailable(currentUserId);
       const response = await messagingApi.getConversationForBooking(booking.id);
+      const resolvedMessages = await resolveChatMessages(response.messages, currentUserId);
       setConversation(response);
-      setMessages(response.messages);
+      setMessages(resolvedMessages);
       window.dispatchEvent(new CustomEvent('inbox-update'));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load chat.');
     } finally {
       setIsLoading(false);
     }
-  }, [booking.id, open]);
+  }, [booking.id, currentUserId, open]);
 
   useEffect(() => {
     if (!open) {
@@ -90,8 +100,9 @@ export default function ChatSheet({
   }, [bootstrapConversation, open]);
 
   const handleSocketMessage = useCallback(
-    (message: ApiChatMessage) => {
-      setMessages((previous) => upsertMessage(previous, message));
+    async (message: ApiChatMessage) => {
+      const resolvedMessage = await resolveChatMessage(message, currentUserId);
+      setMessages((previous) => upsertMessage(previous, resolvedMessage));
       if (String(message.sender.id) !== String(currentUserId) && conversation?.id) {
         messagingApi.markConversationAsRead(conversation.id).then(() => {
           window.dispatchEvent(new CustomEvent('inbox-update'));
@@ -122,6 +133,7 @@ export default function ChatSheet({
     setError(null);
 
     try {
+      await ensureLocalChatKeyAvailable(currentUserId);
       let attachmentPayload:
         | {
             attachment_url?: string;
@@ -131,19 +143,43 @@ export default function ChatSheet({
             message_type?: 'image' | 'file';
           }
         | undefined;
+      let encryptedBody;
 
       if (selectedFile) {
         const uploaded = await messagingApi.uploadAttachment(conversation.id, selectedFile);
         attachmentPayload = uploaded;
       }
 
+      if (attachmentPayload) {
+        encryptedBody = await encryptChatAttachmentMessage(
+          {
+            text: trimmedText,
+            attachment: {
+              url: attachmentPayload.attachment_url,
+              name: attachmentPayload.attachment_name,
+              mime: attachmentPayload.attachment_mime,
+              bytes: attachmentPayload.attachment_bytes ?? null,
+            },
+          },
+          conversation.participants,
+          currentUserId
+        );
+      } else if (trimmedText) {
+        encryptedBody = await encryptChatTextMessage(
+          trimmedText,
+          conversation.participants,
+          currentUserId
+        );
+      }
+
       sendMessage({
-        body: trimmedText,
+        body: '',
+        encrypted_body: encryptedBody,
         message_type: attachmentPayload?.message_type ?? 'text',
-        attachment_url: attachmentPayload?.attachment_url,
-        attachment_name: attachmentPayload?.attachment_name,
-        attachment_mime: attachmentPayload?.attachment_mime,
-        attachment_bytes: attachmentPayload?.attachment_bytes ?? null,
+        attachment_url: '',
+        attachment_name: '',
+        attachment_mime: '',
+        attachment_bytes: null,
       });
 
       setDraft('');
@@ -153,7 +189,7 @@ export default function ChatSheet({
     } finally {
       setIsSending(false);
     }
-  }, [conversation, selectedFile, sendMessage]);
+  }, [conversation, currentUserId, selectedFile, sendMessage]);
 
   const connectionLabel = {
     idle: 'Loading chat',

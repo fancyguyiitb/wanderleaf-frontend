@@ -8,11 +8,11 @@ import {
 } from '@chatscope/chat-ui-kit-react';
 import { Download, FileText } from 'lucide-react';
 import { getAvatarUrl } from '@/lib/avatar';
+import type { ResolvedChatMessage } from '@/lib/chat-crypto';
 import { cn } from '@/lib/utils';
-import type { ApiChatMessage } from '@/lib/api';
 
 interface ChatThreadProps {
-  messages: ApiChatMessage[];
+  messages: ResolvedChatMessage[];
   currentUserId: string;
 }
 
@@ -31,7 +31,10 @@ export default function ChatThread({ messages, currentUserId }: ChatThreadProps)
             {messages.map((message) => {
               const isOutgoing = String(message.sender.id) === String(currentUserId);
               const direction = isOutgoing ? 'outgoing' : 'incoming';
-              const hasAttachment = Boolean(message.attachment_url);
+              const attachmentUrl = message.resolved_attachment_url || message.attachment_url;
+              const attachmentName = message.resolved_attachment_name || message.attachment_name;
+              const attachmentMime = message.resolved_attachment_mime || message.attachment_mime;
+              const hasAttachment = Boolean(attachmentUrl);
 
               return (
                 <Message
@@ -54,20 +57,24 @@ export default function ChatThread({ messages, currentUserId }: ChatThreadProps)
                             : 'bg-secondary text-secondary-foreground'
                         )}
                       >
-                        {message.body && (
-                          <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.body}</p>
+                        {message.resolved_body && (
+                          <p className="whitespace-pre-wrap text-sm leading-relaxed">{message.resolved_body}</p>
+                        )}
+
+                        {message.decryption_error && (
+                          <p className="text-xs opacity-80">{message.decryption_error}</p>
                         )}
 
                         {hasAttachment && message.message_type === 'image' && (
                           <a
-                            href={message.attachment_url}
+                            href={attachmentUrl}
                             target="_blank"
                             rel="noreferrer"
                             className="mt-2 block overflow-hidden rounded-xl border border-black/10 bg-black/5"
                           >
                             <img
-                              src={message.attachment_url}
-                              alt={message.attachment_name || 'Uploaded image'}
+                              src={attachmentUrl}
+                              alt={attachmentName || 'Uploaded image'}
                               className="max-h-64 w-full object-cover"
                             />
                           </a>
@@ -75,7 +82,7 @@ export default function ChatThread({ messages, currentUserId }: ChatThreadProps)
 
                         {hasAttachment && message.message_type === 'file' && (
                           <a
-                            href={message.attachment_url}
+                            href={attachmentUrl}
                             target="_blank"
                             rel="noreferrer"
                             className={cn(
@@ -88,10 +95,10 @@ export default function ChatThread({ messages, currentUserId }: ChatThreadProps)
                             <FileText size={18} />
                             <div className="min-w-0 flex-1">
                               <p className="truncate font-medium">
-                                {message.attachment_name || 'Attachment'}
+                                {attachmentName || 'Attachment'}
                               </p>
                               <p className="truncate text-xs opacity-80">
-                                {message.attachment_mime || 'Download file'}
+                                {attachmentMime || 'Download file'}
                               </p>
                             </div>
                             <Download size={16} />

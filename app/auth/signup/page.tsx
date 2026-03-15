@@ -28,6 +28,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { apiFetch } from '@/lib/api';
+import { syncChatKeyAfterLogin } from '@/lib/chat-crypto';
 import { useAuthStore } from '@/lib/store';
 
 const phoneSchema = z
@@ -72,7 +73,10 @@ function getSafeRedirect(redirect: string | null): string {
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const setAuth = useAuthStore((state) => state.setAuth);
+  const { setAuth, logout } = useAuthStore((state) => ({
+    setAuth: state.setAuth,
+    logout: state.logout,
+  }));
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = getSafeRedirect(searchParams.get('redirect'));
@@ -142,8 +146,11 @@ export default function SignupPage() {
         refreshToken: loginResponse.refresh ?? null,
       });
 
+      await syncChatKeyAfterLogin(String(loginResponse.user.id), values.password);
+
       router.push(redirectTo);
     } catch (error: any) {
+      logout();
       const message = error?.message ?? 'Unable to create your account. Please try again.';
       form.setError('email', { type: 'manual', message });
     }
