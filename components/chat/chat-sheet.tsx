@@ -14,6 +14,7 @@ import {
 } from '@/lib/api';
 import { getAvatarUrl } from '@/lib/avatar';
 import {
+  encryptChatAttachmentMessage,
   encryptChatTextMessage,
   ensureLocalChatKeyAvailable,
   resolveChatMessage,
@@ -149,7 +150,21 @@ export default function ChatSheet({
         attachmentPayload = uploaded;
       }
 
-      if (trimmedText) {
+      if (attachmentPayload) {
+        encryptedBody = await encryptChatAttachmentMessage(
+          {
+            text: trimmedText,
+            attachment: {
+              url: attachmentPayload.attachment_url,
+              name: attachmentPayload.attachment_name,
+              mime: attachmentPayload.attachment_mime,
+              bytes: attachmentPayload.attachment_bytes ?? null,
+            },
+          },
+          conversation.participants,
+          currentUserId
+        );
+      } else if (trimmedText) {
         encryptedBody = await encryptChatTextMessage(
           trimmedText,
           conversation.participants,
@@ -161,10 +176,10 @@ export default function ChatSheet({
         body: '',
         encrypted_body: encryptedBody,
         message_type: attachmentPayload?.message_type ?? 'text',
-        attachment_url: attachmentPayload?.attachment_url,
-        attachment_name: attachmentPayload?.attachment_name,
-        attachment_mime: attachmentPayload?.attachment_mime,
-        attachment_bytes: attachmentPayload?.attachment_bytes ?? null,
+        attachment_url: '',
+        attachment_name: '',
+        attachment_mime: '',
+        attachment_bytes: null,
       });
 
       setDraft('');

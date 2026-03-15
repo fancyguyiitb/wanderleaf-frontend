@@ -34,8 +34,24 @@ type ChatKeyBackupPayload = {
   backup_version: number;
 };
 
+export type EncryptedAttachmentPayload = {
+  url: string;
+  name?: string;
+  mime?: string;
+  bytes?: number | null;
+};
+
+export type EncryptedMessageContent = {
+  text?: string;
+  attachment?: EncryptedAttachmentPayload | null;
+};
+
 export type ResolvedChatMessage = ApiChatMessage & {
   resolved_body: string;
+  resolved_attachment_url: string;
+  resolved_attachment_name: string;
+  resolved_attachment_mime: string;
+  resolved_attachment_bytes: number | null;
   decryption_error: string | null;
 };
 
@@ -281,14 +297,23 @@ export async function ensureLocalChatKeyAvailable(userId: string) {
   return getStoredKeyPairOrThrow(userId);
 }
 
-export async function encryptChatTextMessage(
-  plaintext: string,
+async function encryptChatMessageContent(
+  content: EncryptedMessageContent,
   participants: ApiChatUser[],
   senderId: string
 ): Promise<ApiEncryptedBody> {
-  const normalizedText = plaintext.trim();
-  if (!normalizedText) {
-    throw new Error('Message cannot be empty.');
+  const normalizedText = content.text?.trim() ?? '';
+  const normalizedAttachment = content.attachment?.url
+    ? {
+        url: content.attachment.url,
+        name: content.attachment.name ?? '',
+        mime: content.attachment.mime ?? '',
+        bytes: content.attachment.bytes ?? null,
+      }
+    : null;
+
+  if (!normalizedText && !normalizedAttachment) {
+    throw new Error('Encrypted message content cannot be empty.');
   }
 
   const senderKey = await getStoredKeyPairOrThrow(senderId);
@@ -315,7 +340,12 @@ export async function encryptChatTextMessage(
       iv,
     },
     aesKey,
-    encoder.encode(normalizedText)
+    encoder.encode(
+      JSON.stringify({
+        text: normalizedText || '',
+        attachment: normalizedAttachment,
+      } satisfies EncryptedMessageContent)
+    )
   );
 
   const wrappedKeys: ApiEncryptedBody['wrapped_keys'] = {};
@@ -340,13 +370,40 @@ export async function encryptChatTextMessage(
   };
 }
 
+export async function encryptChatTextMessage(
+  plaintext: string,
+  participants: ApiChatUser[],
+  senderId: string
+): Promise<ApiEncryptedBody> {
+  return encryptChatMessageContent({ text: plaintext }, participants, senderId);
+}
+
+export async function encryptChatAttachmentMessage(
+  payload: EncryptedMessageContent,
+  participants: ApiChatUser[],
+  senderId: string
+): Promise<ApiEncryptedBody> {
+  return encryptChatMessageContent(payload, participants, senderId);
+}
+
 export async function decryptChatMessageBody(
   message: ApiChatMessage,
   currentUserId: string
-): Promise<{ resolvedBody: string; error: string | null }> {
+): Promise<{
+  resolvedBody: string;
+  resolvedAttachmentUrl: string;
+  resolvedAttachmentName: string;
+  resolvedAttachmentMime: string;
+  resolvedAttachmentBytes: number | null;
+  error: string | null;
+}> {
   if (!message.is_encrypted || !message.encrypted_body) {
     return {
       resolvedBody: message.body,
+      resolvedAttachmentUrl: message.attachment_url,
+      resolvedAttachmentName: message.attachment_name,
+      resolvedAttachmentMime: message.attachment_mime,
+      resolvedAttachmentBytes: message.attachment_bytes,
       error: null,
     };
   }
@@ -357,6 +414,10 @@ export async function decryptChatMessageBody(
     if (!wrappedKeyData?.wrapped_key) {
       return {
         resolvedBody: '',
+        resolvedAttachmentUrl: '',
+        resolvedAttachmentName: '',
+        resolvedAttachmentMime: '',
+        resolvedAttachmentBytes: null,
         error: 'This device cannot decrypt the message.',
       };
     }
@@ -384,29 +445,65 @@ export async function decryptChatMessageBody(
       fromBase64(message.encrypted_body.ciphertext)
     );
 
-    return {
-      resolvedBody: decoder.decode(plaintext),
-      error: null,
-    };
+    const decoded = decoder.decode(plaintext);
+    try {
+      const parsed = JSON.parse(decoded) as EncryptedMessageContent;
+      return {
+        resolvedBody: parsed.text ?? '',
+        resolvedAttachmentUrl: parsed.attachment?.url ?? '',
+        resolvedAttachmentName: parsed.attachment?.name ?? '',
+        resolvedAttachmentMime: parsed.attachment?.mime ?? '',
+        resolvedAttachmentBytes: parsed.attachment?.bytes ?? null,
+        error: null,
+      };
+    } catch {
+      return {
+        resolvedBody: decoded,
+        resolvedAttachmentUrl: '',
+        resolvedAttachmentName: '',
+        resolvedAttachmentMime: '',
+        resolvedAttachmentBytes: null,
+        error: null,
+      };
+    }
   } catch (error) {
     if (error instanceof Error) {
       return {
         resolvedBody: '',
+        resolvedAttachmentUrl: '',
+        resolvedAttachmentName: '',
+        resolvedAttachmentMime: '',
+        resolvedAttachmentBytes: null,
         error: error.message,
       };
     }
     return {
       resolvedBody: '',
+      resolvedAttachmentUrl: '',
+      resolvedAttachmentName: '',
+      resolvedAttachmentMime: '',
+      resolvedAttachmentBytes: null,
       error: 'This device could not decrypt the message.',
     };
   }
 }
 
 export async function resolveChatMessage(message: ApiChatMessage, currentUserId: string): Promise<ResolvedChatMessage> {
-  const { resolvedBody, error } = await decryptChatMessageBody(message, currentUserId);
+  const {
+    resolvedBody,
+    resolvedAttachmentUrl,
+    resolvedAttachmentName,
+    resolvedAttachmentMime,
+    resolvedAttachmentBytes,
+    error,
+  } = await decryptChatMessageBody(message, currentUserId);
   return {
     ...message,
     resolved_body: resolvedBody,
+    resolved_attachment_url: resolvedAttachmentUrl,
+    resolved_attachment_name: resolvedAttachmentName,
+    resolved_attachment_mime: resolvedAttachmentMime,
+    resolved_attachment_bytes: resolvedAttachmentBytes,
     decryption_error: error,
   };
 }
