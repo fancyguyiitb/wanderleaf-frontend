@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store';
 import { Loader2 } from 'lucide-react';
@@ -13,7 +13,7 @@ interface RequireAuthProps {
  * Wraps protected content. Redirects to login if not authenticated.
  * Shows loading state while auth is hydrating.
  */
-export default function RequireAuth({ children }: RequireAuthProps) {
+function RequireAuthContent({ children }: RequireAuthProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -49,4 +49,12 @@ export default function RequireAuth({ children }: RequireAuthProps) {
   }
 
   return <>{children}</>;
+}
+
+export default function RequireAuth({ children }: RequireAuthProps) {
+  return (
+    <Suspense fallback={null}>
+      <RequireAuthContent>{children}</RequireAuthContent>
+    </Suspense>
+  );
 }

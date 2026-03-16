@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import Script from 'next/script';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -75,7 +75,7 @@ declare global {
   }
 }
 
-export default function BookingDetailPage() {
+function BookingDetailPageContent() {
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -789,4 +789,12 @@ export default function BookingDetailPage() {
   );
 
   return <RequireAuth>{pageContent}</RequireAuth>;
+}
+
+export default function BookingDetailPage() {
+  return (
+    <Suspense fallback={null}>
+      <BookingDetailPageContent />
+    </Suspense>
+  );
 }

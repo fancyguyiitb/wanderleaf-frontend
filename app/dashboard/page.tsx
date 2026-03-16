@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { Suspense, useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
@@ -47,7 +47,7 @@ type DashboardUser = User & {
   verified?: boolean;
 };
 
-export default function DashboardPage() {
+function DashboardPageContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState(
@@ -619,6 +619,14 @@ export default function DashboardPage() {
       <Footer />
     </div>
     </RequireAuth>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={null}>
+      <DashboardPageContent />
+    </Suspense>
   );
 }
 
