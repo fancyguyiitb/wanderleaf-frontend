@@ -402,7 +402,7 @@ export default function CheckoutPage() {
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-20 text-center">
         <h1 className="text-2xl font-bold text-foreground mb-4">Booking Not Found</h1>
         <p className="text-muted-foreground mb-6">The property for this booking could not be loaded.</p>
-        <a href="/" className="text-primary hover:underline font-medium">Back to Home</a>
+        <Link href="/" className="text-primary hover:underline font-medium">Back to Home</Link>
       </main>
       <Footer />
     </div>

@@ -28,7 +28,7 @@ export default function HeroSection({ onSearch }: HeroSectionProps) {
           className="text-center mb-12 md:mb-16"
         >
           <h1 className="font-playfair text-4xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 text-balance">
-            Discover Nature's <span className="text-primary">Hidden Gems</span>
+            Discover Nature&apos;s <span className="text-primary">Hidden Gems</span>
           </h1>
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto text-balance">
             Find and book unique, nature-inspired accommodations around the world. From mountain retreats to beachfront escapes, explore your next perfect getaway.

@@ -8,8 +8,8 @@ import WishlistHydrator from '@/components/wishlist-hydrator'
 import GlobalChatNotifications from '@/components/global-chat-notifications'
 import { Toaster } from '@/components/ui/sonner'
 
-const _geist = Geist({ subsets: ['latin'] })
-const _geistMono = Geist_Mono({ subsets: ['latin'] })
+const geist = Geist({ subsets: ['latin'], variable: '--font-geist-sans' })
+const geistMono = Geist_Mono({ subsets: ['latin'], variable: '--font-geist-mono' })
 
 export const metadata: Metadata = {
   title: 'WanderLeaf - Find Your Perfect Getaway',
@@ -31,7 +31,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="light" style={{ colorScheme: 'light' }}>
-      <body className="font-sans antialiased">
+      <body className={`${geist.variable} ${geistMono.variable} font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light" enableSystem={false}>
           <AuthHydrator />
           <WishlistHydrator />

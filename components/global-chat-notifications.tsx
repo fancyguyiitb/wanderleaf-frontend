@@ -36,7 +36,7 @@ export default function GlobalChatNotifications() {
     currentOpenBookingRef.current = currentBookingWithOpenChat;
   }, [currentBookingWithOpenChat]);
 
-  const connect = useCallback(() => {
+  const connect = useCallback(function connectSocket() {
     if (!authReady || !isAuthenticated || !user?.id) return;
     try {
       const socket = new WebSocket(messagingApi.getNotificationsWebSocketUrl());
@@ -84,13 +84,13 @@ export default function GlobalChatNotifications() {
       socket.onclose = () => {
         if (socketRef.current === socket) {
           socketRef.current = null;
-          reconnectTimeoutRef.current = setTimeout(connect, 3000);
+          reconnectTimeoutRef.current = setTimeout(connectSocket, 3000);
         }
       };
 
       socket.onerror = () => socket.close();
     } catch {
-      reconnectTimeoutRef.current = setTimeout(connect, 3000);
+      reconnectTimeoutRef.current = setTimeout(connectSocket, 3000);
     }
   }, [authReady, isAuthenticated, user?.id]);
 

@@ -8,7 +8,7 @@ import { Mail, Lock, User, Eye, EyeOff, CheckCircle, Phone } from 'lucide-react'
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import * as z from 'zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Form,
@@ -92,6 +92,10 @@ export default function SignupPage() {
       agreeToTerms: false,
     },
   });
+  const passwordValue = useWatch({
+    control: form.control,
+    name: 'password',
+  });
 
   const isLoading = form.formState.isSubmitting;
 
@@ -149,13 +153,15 @@ export default function SignupPage() {
       await syncChatKeyAfterLogin(String(loginResponse.user.id), values.password);
 
       router.push(redirectTo);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logout();
-      const message = error?.message ?? 'Unable to create your account. Please try again.';
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to create your account. Please try again.';
       form.setError('email', { type: 'manual', message });
     }
   };
-  const passwordValue = form.watch('password');
   const requirements = [
     { label: 'At least 8 characters', met: passwordValue.length >= 8 },
     { label: 'Uppercase & lowercase letters', met: /[a-z]/.test(passwordValue) && /[A-Z]/.test(passwordValue) },

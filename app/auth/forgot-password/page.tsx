@@ -47,10 +47,10 @@ export default function ForgotPasswordPage() {
                   </div>
                   <h1 className="font-playfair text-2xl font-bold text-foreground mb-2">Check Your Email</h1>
                   <p className="text-muted-foreground mb-6">
-                    We've sent a password reset link to <span className="font-semibold text-foreground">{email}</span>
+                    We&apos;ve sent a password reset link to <span className="font-semibold text-foreground">{email}</span>
                   </p>
                   <p className="text-sm text-muted-foreground mb-6">
-                    The link will expire in 24 hours. If you don't see the email, check your spam folder.
+                    The link will expire in 24 hours. If you don&apos;t see the email, check your spam folder.
                   </p>
 
                   <motion.button
@@ -63,7 +63,7 @@ export default function ForgotPasswordPage() {
                   </motion.button>
 
                   <p className="text-sm text-muted-foreground">
-                    Didn't receive the email?{' '}
+                    Didn&apos;t receive the email?{' '}
                     <button
                       onClick={() => setSubmitted(false)}
                       className="text-primary font-semibold hover:underline"
@@ -86,7 +86,7 @@ export default function ForgotPasswordPage() {
                   </Link>
                   <h1 className="font-playfair text-3xl font-bold text-foreground mb-2">Reset Password</h1>
                   <p className="text-muted-foreground">
-                    Enter your email address and we'll send you a link to reset your password.
+                    Enter your email address and we&apos;ll send you a link to reset your password.
                   </p>
                 </div>
 

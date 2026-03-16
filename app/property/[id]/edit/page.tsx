@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { listingsApi, CreateListingPayload } from '@/lib/api';
-import { useAuthStore, useHostListingStore, Property } from '@/lib/store';
+import { useAuthStore, useHostListingStore } from '@/lib/store';
 import { amenitiesList, categories } from '@/lib/constants';
 
 const MAX_FILES = 8;
@@ -209,8 +209,8 @@ export default function EditPropertyPage() {
       setTimeout(() => {
         router.push(`/property/${propertyId}`);
       }, 1000);
-    } catch (err: any) {
-      setSaveError(err.message || 'Failed to save changes.');
+    } catch (err: unknown) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to save changes.');
     } finally {
       setIsSaving(false);
       setUploadProgress(0);

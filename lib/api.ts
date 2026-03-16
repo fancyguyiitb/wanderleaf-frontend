@@ -47,6 +47,12 @@ export interface RetryPolicy {
   retryOnNetworkError?: boolean;
 }
 
+interface ApiErrorPayload {
+  detail?: string;
+  message?: string;
+  code?: string;
+}
+
 const TRANSIENT_API_STATUS_CODES = [408, 425, 429, 500, 502, 503, 504];
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -68,6 +74,19 @@ const isRetryableNetworkError = (error: unknown) => {
     message.includes('timeout') ||
     message.includes('cors')
   );
+};
+
+const getApiErrorPayload = (data: unknown): ApiErrorPayload => {
+  if (!data || typeof data !== 'object') {
+    return {};
+  }
+
+  const payload = data as Record<string, unknown>;
+  return {
+    detail: typeof payload.detail === 'string' ? payload.detail : undefined,
+    message: typeof payload.message === 'string' ? payload.message : undefined,
+    code: typeof payload.code === 'string' ? payload.code : undefined,
+  };
 };
 
 /* ─── Generic fetch ─── */
@@ -163,11 +182,9 @@ export const apiFetch = async <TResponse>(
           continue;
         }
 
+        const { detail, message: apiMessage, code } = getApiErrorPayload(data);
         const message =
-          (data as any)?.detail ||
-          (data as any)?.message ||
-          'Something went wrong while communicating with the server.';
-        const code = (data as any)?.code;
+          detail || apiMessage || 'Something went wrong while communicating with the server.';
         throw new ApiError(message, response.status, code, data);
       }
 
@@ -359,7 +376,7 @@ export const apiUpload = async <TResponse>(
   }
 
   if (!response.ok) {
-    throw new Error((data as any)?.detail || 'Upload failed.');
+    throw new Error(getApiErrorPayload(data).detail || 'Upload failed.');
   }
 
   return data as TResponse;
