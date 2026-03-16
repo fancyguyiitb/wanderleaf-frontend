@@ -165,20 +165,22 @@ export default function BookingDetailPage() {
     }
   }, [chatRequestedFromUrl, isChatAvailable]);
 
+  const retryBookingId = booking?.id;
+  const retryDeadlineSeconds = booking?.payment_deadline_seconds ?? 0;
+
   useEffect(() => {
-    if (!retryAllowed || !booking) {
+    if (!retryAllowed || !retryBookingId) {
       setSecondsLeft(null);
       retryPaymentIdempotencyKeyRef.current = null;
       return;
     }
-    const deadlineSeconds = booking.payment_deadline_seconds ?? 0;
-    if (deadlineSeconds <= 0) {
+    if (retryDeadlineSeconds <= 0) {
       setSecondsLeft(0);
       return;
     }
     // Non-overridable: derive remaining time from backend-provided seconds.
     // Reloading cannot extend it (backend recomputes remaining).
-    const deadline = Date.now() + deadlineSeconds * 1000;
+    const deadline = Date.now() + retryDeadlineSeconds * 1000;
     const tick = () => {
       const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
       setSecondsLeft(remaining);
@@ -188,7 +190,7 @@ export default function BookingDetailPage() {
         if (!isAutoCancelling) {
           setIsAutoCancelling(true);
           bookingsApi
-            .cancel(booking.id, 'Payment window expired (15 minutes).')
+            .cancel(retryBookingId, 'Payment window expired (15 minutes).')
             .then((res) => setBooking(res.booking))
             .catch(() => refetchBooking())
             .finally(() => setIsAutoCancelling(false));
@@ -200,7 +202,7 @@ export default function BookingDetailPage() {
     tick();
     const iv = setInterval(tick, 1000);
     return () => clearInterval(iv);
-  }, [retryAllowed, booking?.id, booking?.payment_deadline_seconds, refetchBooking, isAutoCancelling]);
+  }, [retryAllowed, retryBookingId, retryDeadlineSeconds, refetchBooking, isAutoCancelling]);
 
   const handleRetryPayment = async () => {
     if (!booking?.id || !retryAllowed || secondsLeft !== null && secondsLeft <= 0 || isRetryingPayment) return;

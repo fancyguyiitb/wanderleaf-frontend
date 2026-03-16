@@ -17,24 +17,33 @@ export class ApiError extends Error {
 
 /* ─── Base URL ─── */
 
+const normalizeAppEnv = (value?: string) => {
+  const env = value?.trim().toLowerCase();
+  return env === 'production' || env === 'prod' ? 'production' : 'development';
+};
+
+const normalizeBaseUrl = (value: string, envVar: string) => {
+  const normalized = value.trim().replace(/\/+$/, '');
+  if (!normalized) {
+    throw new Error(`${envVar} is not set`);
+  }
+  return normalized;
+};
+
 const getBaseUrl = () => {
-  const env = process.env.NEXT_PUBLIC_ENV ?? process.env.NODE_ENV;
+  const env = normalizeAppEnv(process.env.NEXT_PUBLIC_ENV ?? process.env.NODE_ENV);
+  const envVar =
+    env === 'production' ? 'NEXT_PUBLIC_API_BASE_URL_PROD' : 'NEXT_PUBLIC_API_BASE_URL_DEV';
+  const baseUrl =
+    env === 'production'
+      ? process.env.NEXT_PUBLIC_API_BASE_URL_PROD
+      : process.env.NEXT_PUBLIC_API_BASE_URL_DEV;
 
-  const devBase = process.env.NEXT_PUBLIC_API_BASE_URL_DEV;
-  const prodBase = process.env.NEXT_PUBLIC_API_BASE_URL_PROD;
-
-  if (env === 'production') {
-    if (!prodBase) {
-      throw new Error('NEXT_PUBLIC_API_BASE_URL_PROD is not set');
-    }
-    return prodBase;
+  if (!baseUrl) {
+    throw new Error(`${envVar} is not set`);
   }
 
-  if (!devBase) {
-    throw new Error('NEXT_PUBLIC_API_BASE_URL_DEV is not set');
-  }
-
-  return devBase;
+  return normalizeBaseUrl(baseUrl, envVar);
 };
 
 export const getApiBaseUrl = () => getBaseUrl();
@@ -45,6 +54,12 @@ export interface RetryPolicy {
   backoffMultiplier?: number;
   retryOnStatuses?: number[];
   retryOnNetworkError?: boolean;
+}
+
+interface ApiErrorPayload {
+  detail?: string;
+  message?: string;
+  code?: string;
 }
 
 const TRANSIENT_API_STATUS_CODES = [408, 425, 429, 500, 502, 503, 504];
@@ -68,6 +83,19 @@ const isRetryableNetworkError = (error: unknown) => {
     message.includes('timeout') ||
     message.includes('cors')
   );
+};
+
+const getApiErrorPayload = (data: unknown): ApiErrorPayload => {
+  if (!data || typeof data !== 'object') {
+    return {};
+  }
+
+  const payload = data as Record<string, unknown>;
+  return {
+    detail: typeof payload.detail === 'string' ? payload.detail : undefined,
+    message: typeof payload.message === 'string' ? payload.message : undefined,
+    code: typeof payload.code === 'string' ? payload.code : undefined,
+  };
 };
 
 /* ─── Generic fetch ─── */
@@ -163,11 +191,9 @@ export const apiFetch = async <TResponse>(
           continue;
         }
 
+        const { detail, message: apiMessage, code } = getApiErrorPayload(data);
         const message =
-          (data as any)?.detail ||
-          (data as any)?.message ||
-          'Something went wrong while communicating with the server.';
-        const code = (data as any)?.code;
+          detail || apiMessage || 'Something went wrong while communicating with the server.';
         throw new ApiError(message, response.status, code, data);
       }
 
@@ -359,7 +385,7 @@ export const apiUpload = async <TResponse>(
   }
 
   if (!response.ok) {
-    throw new Error((data as any)?.detail || 'Upload failed.');
+    throw new Error(getApiErrorPayload(data).detail || 'Upload failed.');
   }
 
   return data as TResponse;

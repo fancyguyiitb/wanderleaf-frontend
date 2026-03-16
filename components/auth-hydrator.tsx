@@ -115,8 +115,8 @@ export default function AuthHydrator() {
             user: nextUser,
           })
         );
-      } catch (e: any) {
-        const message = e?.message ?? "";
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : "";
         if (message.includes("Given token not valid") || message.includes("Unauthorized")) {
           logout();
           window.localStorage.removeItem("wanderleaf_auth");

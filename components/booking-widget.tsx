@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
@@ -35,7 +35,7 @@ export default function BookingWidget({ property }: BookingWidgetProps) {
 
   const isOwner = Boolean(user && String(user.id) === String(property.host.id));
 
-  const bookedRanges: BookedRange[] = property.bookedDates ?? [];
+  const bookedRanges: BookedRange[] = useMemo(() => property.bookedDates ?? [], [property.bookedDates]);
   const disabledDateStrings = getDisabledDates(bookedRanges);
   const maxGuests = Math.min(property.guests, 8);
   const today = new Date();

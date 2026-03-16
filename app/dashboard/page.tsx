@@ -28,7 +28,7 @@ import {
   Eye,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useAuthStore, useHostListingStore, usePropertyStore, Property } from '@/lib/store';
+import { useAuthStore, useHostListingStore, usePropertyStore, type Property, type User } from '@/lib/store';
 import RequireAuth from '@/components/require-auth';
 import { listingsApi, wishlistApi, bookingsApi, type ApiBooking } from '@/lib/api';
 import PropertyCard from '@/components/property-card';
@@ -40,6 +40,12 @@ const formatDate = (dateStr: string) =>
     month: 'short',
     day: 'numeric',
   });
+
+type DashboardUser = User & {
+  avatar: string | null;
+  joinDate?: string;
+  verified?: boolean;
+};
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
@@ -100,8 +106,8 @@ export default function DashboardPage() {
     try {
       const listings = await listingsApi.getMyListings();
       setHostListings(listings);
-    } catch (err: any) {
-      setListingsError(err.message || 'Failed to load your listings.');
+    } catch (err: unknown) {
+      setListingsError(err instanceof Error ? err.message : 'Failed to load your listings.');
     } finally {
       setIsLoadingListings(false);
     }
@@ -202,13 +208,17 @@ export default function DashboardPage() {
     }
   };
 
-  const user = authUser ?? {
-    name: 'Guest User',
-    email: 'guest@example.com',
-    avatar: null,
-    joinDate: 'Joined WanderLeaf',
-    verified: false,
-  };
+  const user: DashboardUser = authUser
+    ? { ...authUser, avatar: authUser.avatar ?? null }
+    : {
+        id: 'guest',
+        name: 'Guest User',
+        email: 'guest@example.com',
+        avatar: null,
+        isHost: false,
+        joinDate: 'Joined WanderLeaf',
+        verified: false,
+      };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -262,10 +272,10 @@ export default function DashboardPage() {
                   {user.name}
                 </h2>
                 <p className="text-muted-foreground mb-2">{user.email}</p>
-                {(user as any).joinDate && (
-                  <p className="text-sm text-muted-foreground mb-4">{(user as any).joinDate}</p>
+                {user.joinDate && (
+                  <p className="text-sm text-muted-foreground mb-4">{user.joinDate}</p>
                 )}
-                {(user as any).verified && (
+                {user.verified && (
                   <div className="inline-block px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
                     Verified Guest
                   </div>

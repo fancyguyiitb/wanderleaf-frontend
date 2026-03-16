@@ -30,7 +30,6 @@ import {
   ArrowLeft,
   Check,
   Sparkles,
-  X,
   Loader2,
   Upload,
   Trash2,
@@ -265,8 +264,10 @@ export default function CreatePropertyForm({
       const created = await listingsApi.create(payload);
       onSubmit(created);
       handleOpenChange(false);
-    } catch (err: any) {
-      setSubmitError(err.message || 'Failed to create listing. Please try again.');
+    } catch (err: unknown) {
+      setSubmitError(
+        err instanceof Error ? err.message : 'Failed to create listing. Please try again.'
+      );
     } finally {
       setIsSubmitting(false);
       setUploadProgress(0);

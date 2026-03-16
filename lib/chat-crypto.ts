@@ -1,6 +1,6 @@
 'use client';
 
-import { authApi, type ApiChatMessage, type ApiChatUser, type ApiCurrentUserChatKey, type ApiEncryptedBody } from '@/lib/api';
+import { authApi, type ApiChatMessage, type ApiChatUser, type ApiEncryptedBody } from '@/lib/api';
 
 const CHAT_KEY_DB_NAME = 'wanderleaf-chat-keys';
 const CHAT_KEY_STORE_NAME = 'keys';

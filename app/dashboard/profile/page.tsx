@@ -281,8 +281,11 @@ export default function ProfilePage() {
       });
 
       router.push('/dashboard');
-    } catch (error: any) {
-      const message = error?.message ?? 'Unable to update your profile. Please try again.';
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to update your profile. Please try again.';
 
       if (message.includes('Given token not valid') || message.includes('Unauthorized')) {
         // Token is invalid/expired – clear auth and force re-login
@@ -322,7 +325,6 @@ export default function ProfilePage() {
             <div className="-mt-16 px-6 pb-6 flex flex-col sm:flex-row sm:items-end gap-4">
               <div className="relative shrink-0">
                 <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-full border-4 border-background bg-muted overflow-hidden shadow-md">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={getAvatarUrl(avatarPreview ?? user?.avatar, user?.name ?? null)}
                     alt={user?.name ?? 'Profile photo'}

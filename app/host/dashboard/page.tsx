@@ -69,10 +69,6 @@ export default function HostDashboardPage() {
     status: string;
   }[] = [];
 
-  const togglePropertyVisibility = (propertyId: string) => {
-    console.log('Toggling visibility for', propertyId);
-  };
-
   return (
     <RequireAuth>
     <div className="min-h-screen bg-background flex flex-col">

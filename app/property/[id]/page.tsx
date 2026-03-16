@@ -10,7 +10,7 @@ import BookingWidget from '@/components/booking-widget';
 import ReviewsSection from '@/components/reviews-section';
 import { bookingsApi, listingsApi, wishlistApi } from '@/lib/api';
 import { useAuthStore, usePropertyStore, Property } from '@/lib/store';
-import { Heart, MapPin, Users, Wifi, Wind, Flame, Coffee, Loader2, Edit2, ArrowLeft, Calendar } from 'lucide-react';
+import { Heart, MapPin, Wifi, Wind, Flame, Coffee, Loader2, Edit2, ArrowLeft, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getAvatarUrl } from '@/lib/avatar';
 

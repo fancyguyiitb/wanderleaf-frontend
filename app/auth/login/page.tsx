@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import * as z from 'zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
   Form,
@@ -83,6 +83,10 @@ export default function LoginPage() {
       remember: true,
     },
   });
+  const loginMethod = useWatch({
+    control: form.control,
+    name: 'loginMethod',
+  });
 
   const isLoading = form.formState.isSubmitting;
 
@@ -150,11 +154,12 @@ export default function LoginPage() {
       await syncChatKeyAfterLogin(String(response.user.id), values.password);
 
       router.push(redirectTo);
-    } catch (error: any) {
+    } catch (error: unknown) {
       logout();
       window.localStorage.removeItem('wanderleaf_auth');
       console.error('[Login] Login failed', { error });
-      const message = error?.message ?? 'Unable to sign you in. Please try again.';
+      const message =
+        error instanceof Error ? error.message : 'Unable to sign you in. Please try again.';
       form.setError('password', { type: 'manual', message });
     }
   };
@@ -260,7 +265,7 @@ export default function LoginPage() {
                             </FormLabel>
                             <FormControl>
                               <div className="relative">
-                                {form.watch('loginMethod') === 'email' ? (
+                                {loginMethod === 'email' ? (
                                   <Mail
                                     className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
                                     size={18}

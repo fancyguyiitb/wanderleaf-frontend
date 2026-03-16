@@ -51,8 +51,8 @@ export default function HostHomeView() {
 
       setHostListings(listings);
       setHostBookings(bookings);
-    } catch (err: any) {
-      setFetchError(err.message || 'Failed to load your host data.');
+    } catch (err: unknown) {
+      setFetchError(err instanceof Error ? err.message : 'Failed to load your host data.');
     } finally {
       setIsLoading(false);
     }

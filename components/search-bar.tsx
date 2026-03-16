@@ -13,8 +13,28 @@ interface LocationSuggestion {
   display: string;
 }
 
-function formatPhotonFeature(feature: any): LocationSuggestion {
-  const props = feature.properties;
+interface PhotonProperties {
+  name?: string;
+  city?: string;
+  county?: string;
+  state?: string;
+  country?: string;
+}
+
+interface PhotonFeature {
+  properties?: PhotonProperties;
+  geometry?: {
+    coordinates?: [number, number];
+  };
+}
+
+interface PhotonResponse {
+  features?: PhotonFeature[];
+}
+
+function formatPhotonFeature(feature: PhotonFeature): LocationSuggestion {
+  const props = feature.properties ?? {};
+  const [longitude = 0, latitude = 0] = feature.geometry?.coordinates ?? [];
   const parts: string[] = [];
 
   const name = props.name || props.city || props.county || '';
@@ -25,7 +45,7 @@ function formatPhotonFeature(feature: any): LocationSuggestion {
   if (state) parts.push(state);
 
   return {
-    id: `${feature.geometry.coordinates[0]}-${feature.geometry.coordinates[1]}`,
+    id: `${longitude}-${latitude}`,
     name,
     region: parts.join(', '),
     country,
@@ -76,9 +96,9 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
         `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=5&lang=en&layer=city&layer=state&layer=country`,
         { signal: controller.signal }
       );
-      const data = await res.json();
+      const data: PhotonResponse = await res.json();
 
-      const results: LocationSuggestion[] = (data.features || []).map(formatPhotonFeature);
+      const results: LocationSuggestion[] = (data.features ?? []).map(formatPhotonFeature);
 
       const seen = new Set<string>();
       const unique = results.filter((s) => {
@@ -90,8 +110,8 @@ export default function SearchBar({ onSearch }: SearchBarProps) {
       setSuggestions(unique);
       setShowSuggestions(unique.length > 0);
       setHighlightedIndex(-1);
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
+    } catch (err: unknown) {
+      if (!(err instanceof DOMException && err.name === 'AbortError')) {
         setSuggestions([]);
         setShowSuggestions(false);
       }

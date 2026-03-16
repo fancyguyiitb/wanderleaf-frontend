@@ -17,7 +17,6 @@ interface PropertyCardProps {
 
 export default function PropertyCard({ property, index = 0 }: PropertyCardProps) {
   const router = useRouter();
-  const [isImageLoading, setIsImageLoading] = useState(true);
   const [isToggling, setIsToggling] = useState(false);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const { favorites, addFavorite, removeFavorite } = usePropertyStore();
@@ -65,7 +64,6 @@ export default function PropertyCard({ property, index = 0 }: PropertyCardProps)
               alt={property.title}
               fill
               className="object-cover group-hover:scale-105 transition-transform duration-300"
-              onLoadingComplete={() => setIsImageLoading(false)}
             />
             
             {/* Favorite Button */}
