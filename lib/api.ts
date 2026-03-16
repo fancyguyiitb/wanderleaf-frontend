@@ -17,24 +17,33 @@ export class ApiError extends Error {
 
 /* ─── Base URL ─── */
 
+const normalizeAppEnv = (value?: string) => {
+  const env = value?.trim().toLowerCase();
+  return env === 'production' || env === 'prod' ? 'production' : 'development';
+};
+
+const normalizeBaseUrl = (value: string, envVar: string) => {
+  const normalized = value.trim().replace(/\/+$/, '');
+  if (!normalized) {
+    throw new Error(`${envVar} is not set`);
+  }
+  return normalized;
+};
+
 const getBaseUrl = () => {
-  const env = process.env.NEXT_PUBLIC_ENV ?? process.env.NODE_ENV;
+  const env = normalizeAppEnv(process.env.NEXT_PUBLIC_ENV ?? process.env.NODE_ENV);
+  const envVar =
+    env === 'production' ? 'NEXT_PUBLIC_API_BASE_URL_PROD' : 'NEXT_PUBLIC_API_BASE_URL_DEV';
+  const baseUrl =
+    env === 'production'
+      ? process.env.NEXT_PUBLIC_API_BASE_URL_PROD
+      : process.env.NEXT_PUBLIC_API_BASE_URL_DEV;
 
-  const devBase = process.env.NEXT_PUBLIC_API_BASE_URL_DEV;
-  const prodBase = process.env.NEXT_PUBLIC_API_BASE_URL_PROD;
-
-  if (env === 'production') {
-    if (!prodBase) {
-      throw new Error('NEXT_PUBLIC_API_BASE_URL_PROD is not set');
-    }
-    return prodBase;
+  if (!baseUrl) {
+    throw new Error(`${envVar} is not set`);
   }
 
-  if (!devBase) {
-    throw new Error('NEXT_PUBLIC_API_BASE_URL_DEV is not set');
-  }
-
-  return devBase;
+  return normalizeBaseUrl(baseUrl, envVar);
 };
 
 export const getApiBaseUrl = () => getBaseUrl();
