@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import Script from 'next/script';
 import { useSearchParams } from 'next/navigation';
@@ -182,7 +182,7 @@ function ErrorScreen({
   );
 }
 
-export default function CheckoutPage() {
+function CheckoutPageContent() {
   const searchParams = useSearchParams();
   const propertyId = searchParams.get('propertyId');
   const user = useAuthStore((s) => s.user);
@@ -653,4 +653,12 @@ export default function CheckoutPage() {
   );
 
   return <RequireAuth>{pageContent}</RequireAuth>;
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={null}>
+      <CheckoutPageContent />
+    </Suspense>
+  );
 }

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
+import { Suspense } from 'react'
 
 import './globals.css'
 import AuthHydrator from '@/components/auth-hydrator'
@@ -35,7 +36,9 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="light" forcedTheme="light" enableSystem={false}>
           <AuthHydrator />
           <WishlistHydrator />
-          <GlobalChatNotifications />
+          <Suspense fallback={null}>
+            <GlobalChatNotifications />
+          </Suspense>
           {children}
           <Toaster position="top-right" richColors />
         </ThemeProvider>

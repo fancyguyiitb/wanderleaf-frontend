@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -10,7 +10,7 @@ import {
 import { resolveChatMessage } from '@/lib/chat-crypto';
 import { useAuthStore } from '@/lib/store';
 
-export default function GlobalChatNotifications() {
+function GlobalChatNotificationsContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -116,4 +116,12 @@ export default function GlobalChatNotifications() {
   }, [authReady, isAuthenticated, user?.id, connect]);
 
   return null;
+}
+
+export default function GlobalChatNotifications() {
+  return (
+    <Suspense fallback={null}>
+      <GlobalChatNotificationsContent />
+    </Suspense>
+  );
 }

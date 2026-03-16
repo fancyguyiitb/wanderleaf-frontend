@@ -1,12 +1,12 @@
 'use client';
 
 import Link from 'next/link';
+import { Suspense, useState } from 'react';
 import Navbar from '@/components/navbar';
 import Footer from '@/components/footer';
 import { Mail, Lock, Eye, EyeOff, Phone, Chrome } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
 import * as z from 'zod';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -63,7 +63,7 @@ function getSafeRedirect(redirect: string | null): string {
   return decoded;
 }
 
-export default function LoginPage() {
+function LoginPageContent() {
   const [showPassword, setShowPassword] = useState(false);
   const { setAuth, logout } = useAuthStore((state) => ({
     setAuth: state.setAuth,
@@ -394,5 +394,13 @@ export default function LoginPage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

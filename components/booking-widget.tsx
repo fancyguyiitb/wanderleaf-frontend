@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
@@ -22,7 +22,7 @@ interface BookingWidgetProps {
   property: Property;
 }
 
-export default function BookingWidget({ property }: BookingWidgetProps) {
+function BookingWidgetContent({ property }: BookingWidgetProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
@@ -280,5 +280,13 @@ export default function BookingWidget({ property }: BookingWidgetProps) {
         </motion.div>
       )}
     </motion.div>
+  );
+}
+
+export default function BookingWidget({ property }: BookingWidgetProps) {
+  return (
+    <Suspense fallback={null}>
+      <BookingWidgetContent property={property} />
+    </Suspense>
   );
 }
