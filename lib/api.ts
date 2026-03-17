@@ -802,20 +802,26 @@ export const messagingApi = {
     );
   },
 
-  getConversationWebSocketUrl(conversationId: string) {
+  getConversationWebSocketConfig(conversationId: string) {
     const token = useAuthStore.getState().accessToken;
     if (!token) {
       throw new Error('Missing authentication token for chat connection.');
     }
-    return `${getWebSocketBaseUrl()}/ws/messaging/conversations/${conversationId}/?token=${encodeURIComponent(token)}`;
+    return {
+      url: `${getWebSocketBaseUrl()}/ws/messaging/conversations/${conversationId}/`,
+      protocols: ['bearer', token],
+    };
   },
 
-  getNotificationsWebSocketUrl() {
+  getNotificationsWebSocketConfig() {
     const token = useAuthStore.getState().accessToken;
     if (!token) {
       throw new Error('Missing authentication token for chat connection.');
     }
-    return `${getWebSocketBaseUrl()}/ws/messaging/notifications/?token=${encodeURIComponent(token)}`;
+    return {
+      url: `${getWebSocketBaseUrl()}/ws/messaging/notifications/`,
+      protocols: ['bearer', token],
+    };
   },
 };
 

@@ -39,7 +39,8 @@ function GlobalChatNotificationsContent() {
   const connect = useCallback(function connectSocket() {
     if (!authReady || !isAuthenticated || !user?.id) return;
     try {
-      const socket = new WebSocket(messagingApi.getNotificationsWebSocketUrl());
+      const { url, protocols } = messagingApi.getNotificationsWebSocketConfig();
+      const socket = new WebSocket(url, protocols);
       socketRef.current = socket;
 
       socket.onmessage = (event) => {
