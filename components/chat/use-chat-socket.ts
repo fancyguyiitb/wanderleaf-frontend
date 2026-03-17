@@ -43,7 +43,8 @@ export function useChatSocket({
     setConnectionState('connecting');
 
     try {
-      const socket = new WebSocket(messagingApi.getConversationWebSocketUrl(conversationId));
+      const { url, protocols } = messagingApi.getConversationWebSocketConfig(conversationId);
+      const socket = new WebSocket(url, protocols);
       socketRef.current = socket;
 
       socket.onopen = () => {
