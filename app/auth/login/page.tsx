@@ -27,7 +27,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { apiFetch } from '@/lib/api';
+import { apiFetch, getApiBaseUrl } from '@/lib/api';
+import { getSafeRedirect, persistAuthSession } from '@/lib/auth-session';
 import { syncChatKeyAfterLogin } from '@/lib/chat-crypto';
 import { useAuthStore } from '@/lib/store';
 
@@ -56,19 +57,9 @@ const loginSchema = z
 
 type LoginValues = z.infer<typeof loginSchema>;
 
-function getSafeRedirect(redirect: string | null): string {
-  if (!redirect || typeof redirect !== 'string') return '/dashboard';
-  const decoded = decodeURIComponent(redirect);
-  if (!decoded.startsWith('/') || decoded.startsWith('/auth')) return '/dashboard';
-  return decoded;
-}
-
 function LoginPageContent() {
   const [showPassword, setShowPassword] = useState(false);
-  const { setAuth, logout } = useAuthStore((state) => ({
-    setAuth: state.setAuth,
-    logout: state.logout,
-  }));
+  const logout = useAuthStore((state) => state.logout);
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = getSafeRedirect(searchParams.get('redirect'));
@@ -105,8 +96,6 @@ function LoginPageContent() {
           id: string;
           username: string;
           email: string;
-          first_name: string;
-          last_name: string;
           avatar?: string | null;
         };
       }>('/api/v1/auth/login/', {
@@ -114,44 +103,9 @@ function LoginPageContent() {
         body: JSON.stringify(payload),
       });
 
-      const fullName =
-        (response.user.first_name || response.user.last_name
-          ? `${response.user.first_name ?? ''} ${response.user.last_name ?? ''}`.trim()
-          : response.user.username) || response.user.email;
+      const appUser = persistAuthSession(response, { remember: values.remember });
 
-      setAuth({
-        user: {
-          id: String(response.user.id),
-          name: fullName,
-          email: response.user.email,
-          avatar: response.user.avatar ?? undefined,
-          isHost: false,
-        },
-        accessToken: response.access,
-        refreshToken: response.refresh ?? null,
-      });
-
-      if (values.remember) {
-        // Store only what we need to restore the session; avoid storing sensitive extras
-        window.localStorage.setItem(
-          'wanderleaf_auth',
-          JSON.stringify({
-            access: response.access,
-            refresh: response.refresh ?? null,
-            user: {
-              id: String(response.user.id),
-              name: fullName,
-              email: response.user.email,
-              avatar: response.user.avatar ?? undefined,
-              isHost: false,
-            },
-          })
-        );
-      } else {
-        window.localStorage.removeItem('wanderleaf_auth');
-      }
-
-      await syncChatKeyAfterLogin(String(response.user.id), values.password);
+      await syncChatKeyAfterLogin(appUser.id, values.password);
 
       router.push(redirectTo);
     } catch (error: unknown) {
@@ -162,6 +116,13 @@ function LoginPageContent() {
         error instanceof Error ? error.message : 'Unable to sign you in. Please try again.';
       form.setError('password', { type: 'manual', message });
     }
+  };
+
+  const handleGoogleSignIn = () => {
+    const googleStartUrl = `${getApiBaseUrl()}/api/v1/auth/google/start/?redirect=${encodeURIComponent(
+      redirectTo
+    )}`;
+    window.location.href = googleStartUrl;
   };
 
   return (
@@ -371,6 +332,7 @@ function LoginPageContent() {
                     type="button"
                     variant="outline"
                     className="flex w-full items-center justify-center gap-2"
+                    onClick={handleGoogleSignIn}
                   >
                     <Chrome size={18} className="text-[#4285F4]" />
                     <span className="text-sm font-medium">Continue with Google</span>
